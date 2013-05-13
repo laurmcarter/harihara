@@ -2,6 +2,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Requests where
 
@@ -23,102 +27,131 @@ import Parsers
 type SendOne t = Text -> t
 type SendTwo t = Text -> Text -> t
 
-type GetOne  m a = LastfmCfg Send -> IO (m a)
-type GetMany m a = LastfmCfg Send -> IO (m [a])
+type GetOne  d a = LastfmCfg Send -> IO (d a)
+type GetMany d a = LastfmCfg Send -> IO (d [a])
 
 type UseKey t  = Request JSON Send (APIKey -> Ready) -> t
 
 --------------------------------------------------------------------------------
 
-class Debug d where
-  sendRequest :: (Value -> Parser a) -> UseKey (GetOne d a)
+type Final = Maybe
+type Debug = Either (Response JSON)
 
-instance Debug Maybe where
+class (Functor d, Monad d) => DebugLevel d where
+  sendRequest :: (Value -> Parser a) -> UseKey (GetOne d a)
+  parseFail :: Response JSON -> d a
+
+instance DebugLevel Maybe where
   sendRequest prs req cfg = do
     res <- lastfm $ req <*> getApiKey cfg
     return (parseMaybe prs =<< res)
+  parseFail _ = Nothing
 
-instance Debug (Either (Maybe Value)) where
+instance DebugLevel (Either (Maybe Value)) where
   sendRequest prs req cfg = do
     res <- lastfm $ req <*> getApiKey cfg
     let p = parseMaybe prs =<< res
     maybe (return $ Left res) (return . Right) p
+  parseFail = Left
 
-debug :: Either (Maybe Value) a -> (a -> IO ()) -> IO ()
-debug e f = either (C8.putStrLn . encodePretty) f e
+debugAnd :: (Show a, DebugLevel d) => Debug a -> (a -> IO (d b)) -> IO (d b)
+debugAnd m f = case m of
+  Left js -> do
+    putStrLn "parse failed:"
+    C8.putStrLn (encodePretty js)
+    putStrLn ""
+    return $ parseFail js
+  Right a -> do
+    putStrLn "parse successful:"
+    print a
+    putStrLn ""
+    f a
 
-final :: Show a => Maybe a -> (a -> IO ()) -> IO ()
+finalAnd :: (Show a, DebugLevel d) => Final a -> (a -> IO (d b)) -> IO (d b)
+finalAnd m f = case m of
+  Nothing -> return $ parseFail $ error "tried to inspect an uncollected parse failure"
+  Just a  -> f a
+
+debug :: (Show a) => Debug a -> (a -> IO ()) -> IO ()
+debug m f = case m of
+  Left js -> do
+    putStrLn "parse failed:"
+    C8.putStrLn (encodePretty js)
+    putStrLn ""
+  Right a -> putStrLn "parse successful" >> f a
+
+final :: (Show a) => Final a -> (a -> IO ()) -> IO ()
 final m f = maybe (return ()) f m
 
 --------------------------------------------------------------------------------
 
-search :: (Search a, Debug d) => UseKey (GetMany d a)
+search :: (Search a, DebugLevel d) => UseKey (GetMany d a)
 search = sendRequest parse_search
 
 --------------------
 
-album_search :: Debug d => SendOne (GetMany d AlbumResult)
+album_search :: DebugLevel d => SendOne (GetMany d AlbumResult)
 album_search = search . (Album.search <*>) . album
 
-artist_search :: Debug d => SendOne (GetMany d ArtistResult)
+artist_search :: DebugLevel d => SendOne (GetMany d ArtistResult)
 artist_search = search . (Artist.search <*>) . artist
 
-tag_search :: Debug d => SendOne (GetMany d TagResult)
+tag_search :: DebugLevel d => SendOne (GetMany d TagResult)
 tag_search = search . (Tag.search <*>) . tag
 
-track_search :: Debug d => SendOne (GetMany d TrackResult)
+track_search :: DebugLevel d => SendOne (GetMany d TrackResult)
 track_search = search . (Track.search <*>) . track
 
 --------------------------------------------------------------------------------
 
-getInfo :: (GetInfo a, Debug d) => UseKey (GetOne d a)
+getInfo :: (GetInfo a, DebugLevel d) => UseKey (GetOne d a)
 getInfo = sendRequest parse_getInfo
 
 --------------------
 
-album_getInfo :: Debug d => SendTwo (GetOne d AlbumResult)
+album_getInfo :: DebugLevel d => SendTwo (GetOne d AlbumResult)
 album_getInfo art alb = getInfo $ Album.getInfo <*> artist art <*> album alb
 
-artist_getInfo :: Debug d => SendOne (GetOne d ArtistResult)
+artist_getInfo :: DebugLevel d => SendOne (GetOne d ArtistResult)
 artist_getInfo = getInfo . (Artist.getInfo <*>) . artist
 
-tag_getInfo :: Debug d => SendOne (GetOne d TagResult)
+tag_getInfo :: DebugLevel d => SendOne (GetOne d TagResult)
 tag_getInfo = getInfo . (Tag.getInfo <*>) . tag
 
-track_getInfo :: Debug d => SendTwo (GetOne d TrackResult)
+track_getInfo :: DebugLevel d => SendTwo (GetOne d TrackResult)
 track_getInfo art trk = getInfo $ Track.getInfo <*> artist art <*> track trk
 
 ----------------------------------------
 
-album_getInfo_mbid :: Debug d => SendOne (GetOne d AlbumResult)
+album_getInfo_mbid :: DebugLevel d => SendOne (GetOne d AlbumResult)
 album_getInfo_mbid = getInfo . (Album.getInfo <*>) . mbid
 
-artist_getInfo_mbid :: Debug d => SendOne (GetOne d ArtistResult)
+artist_getInfo_mbid :: DebugLevel d => SendOne (GetOne d ArtistResult)
 artist_getInfo_mbid = getInfo . (Artist.getInfo <*>) . mbid
 
 -- tag_getInfo_mbid does not exist, as per liblastfm
 
-track_getInfo_mbid :: Debug d => SendOne (GetOne d TrackResult)
+track_getInfo_mbid :: DebugLevel d => SendOne (GetOne d TrackResult)
 track_getInfo_mbid = getInfo . (Track.getInfo <*>) . mbid
 
 --------------------------------------------------------------------------------
 
-getCorrection :: (GetCorrection a, Debug d) => UseKey (GetOne d a)
+getCorrection :: (GetCorrection a, DebugLevel d) => UseKey (GetOne d a)
 getCorrection = sendRequest parse_getCorrection
 
-artist_getCorrection :: Debug d => SendOne (GetOne d ArtistResult)
+artist_getCorrection :: DebugLevel d => SendOne (GetOne d ArtistResult)
 artist_getCorrection = getCorrection . (Artist.getCorrection <*>) . artist
 
 -- track_getCorrection does not exist, b/c last.FM responses seem to be useless
 
 --------------------------------------------------------------------------------
 
-getSimilar :: (GetSimilar a, Debug d) => UseKey (GetMany d a)
+getSimilar :: (GetSimilar a, DebugLevel d) => UseKey (GetMany d a)
 getSimilar = sendRequest parse_getSimilar
 
-artist_getSimilar :: Debug d => SendOne (GetMany d ArtistResult)
+artist_getSimilar :: DebugLevel d => SendOne (GetMany d ArtistResult)
 artist_getSimilar = getSimilar . (Artist.getSimilar <*>) . artist
 
-tag_getSimilar :: Debug d => SendOne (GetMany d TagResult)
+tag_getSimilar :: DebugLevel d => SendOne (GetMany d TagResult)
 tag_getSimilar = getSimilar . (Tag.getSimilar <*>) . tag
 
