@@ -17,6 +17,11 @@ import Parsers.Extras
 
 --------------------------------------------------------------------------------
 
+generic_parse_getInfo :: FromJSON a => T.Text -> Value -> Parser a
+generic_parse_getInfo typ =
+  parseJSON >=>
+  (.: typ)
+
 class (FromJSON a) => GetInfo a where
   parse_getInfo :: Value -> Parser a
 
@@ -32,12 +37,15 @@ instance GetInfo TagResult where
 instance GetInfo TrackResult where
   parse_getInfo = generic_parse_getInfo "track"
 
-generic_parse_getInfo :: FromJSON a => T.Text -> Value -> Parser a
-generic_parse_getInfo typ =
-  parseJSON >=>
-  (.: typ)
-
 --------------------------------------------------------------------------------
+
+generic_parse_search :: FromJSON a => T.Text -> Value -> Parser [a]
+generic_parse_search typ =
+  parseJSON                     >=>
+  (.: "results")                >=>
+  (.: (T.append typ "matches")) >=>
+  (.: typ)                      >=>
+  oneOrMore
 
 class (FromJSON a) => Search a where
   parse_search  :: Value -> Parser [a]
@@ -54,21 +62,7 @@ instance Search TagResult where
 instance Search TrackResult where
   parse_search = generic_parse_search "track"
 
-generic_parse_search :: FromJSON a => T.Text -> Value -> Parser [a]
-generic_parse_search typ =
-  parseJSON                     >=>
-  (.: "results")                >=>
-  (.: (T.append typ "matches")) >=>
-  (.: typ)                      >=>
-  oneOrMore
-
 --------------------------------------------------------------------------------
-
-class (FromJSON a) => GetCorrection a where
-  parse_getCorrection :: Value -> Parser a
-
-instance GetCorrection ArtistResult where
-  parse_getCorrection = generic_parse_getCorrection "artist"
 
 generic_parse_getCorrection :: FromJSON a => T.Text -> Value -> Parser a
 generic_parse_getCorrection typ =
@@ -77,7 +71,20 @@ generic_parse_getCorrection typ =
   (.: "correction")  >=>
   (.: typ)
 
+class (FromJSON a) => GetCorrection a where
+  parse_getCorrection :: Value -> Parser a
+
+instance GetCorrection ArtistResult where
+  parse_getCorrection = generic_parse_getCorrection "artist"
+
 --------------------------------------------------------------------------------
+
+generic_parse_getSimilar :: FromJSON a => T.Text -> Value -> Parser [a]
+generic_parse_getSimilar typ =
+  parseJSON                           >=>
+  (.: (T.concat ["similar",typ,"s"])) >=>
+  (.: typ)                            >=>
+  oneOrMore
 
 class (FromJSON a) => GetSimilar a where
   parse_getSimilar :: Value -> Parser [a]
@@ -87,11 +94,4 @@ instance GetSimilar ArtistResult where
 
 instance GetSimilar TagResult where
   parse_getSimilar = generic_parse_getSimilar "tag"
-
-generic_parse_getSimilar :: FromJSON a => T.Text -> Value -> Parser [a]
-generic_parse_getSimilar typ =
-  parseJSON                           >=>
-  (.: (T.concat ["similar",typ,"s"])) >=>
-  (.: typ)                            >=>
-  oneOrMore
 

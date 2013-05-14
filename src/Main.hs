@@ -28,17 +28,9 @@ main = do
   ars <- similarArtists srch cfg 
   debug ars print
 
-similarArtists :: DebugLevel d => T.Text -> LastfmCfg Send -> IO (d [T.Text])
-similarArtists art cfg = do
+similarArtists :: MonadDebug r d => T.Text -> LastfmCfg Send -> IO (r [T.Text])
+similarArtists art cfg = runRequest $ do
   cor <- artist_getCorrection art cfg
-  finalAnd cor $ \a -> do
-    sim <- artist_getSimilar (a ^. artistName) cfg
-    return $ map (^. artistName) <$> sim
-
-withArtist :: LastfmCfg Send -> ArtistResult -> IO ()
-withArtist cfg a = do
-  let nm = a ^. artistName
-  putStrLn $ "Found artist " ++ show nm
-  sim <- artist_getSimilar nm cfg
-  debug sim (print . map (^. artistName))
+  sim <- artist_getSimilar (cor ^. artistName) cfg
+  return $ map (^. artistName) sim
 
