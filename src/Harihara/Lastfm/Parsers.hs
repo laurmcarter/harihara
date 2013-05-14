@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module Parsers 
-  ( module Parsers
-  , module Parsers.Types
+module Harihara.Lastfm.Parsers 
+  ( module Harihara.Lastfm.Parsers
+  , module Harihara.Lastfm.Parsers.Types
   ) where
 
 import Data.Aeson
@@ -12,8 +12,8 @@ import Data.Aeson.Types
 import Control.Monad
 import qualified Data.Text as T
 
-import Parsers.Types
-import Parsers.Extras
+import Harihara.Lastfm.Parsers.Types
+import Harihara.Lastfm.Parsers.Extras
 
 --------------------------------------------------------------------------------
 

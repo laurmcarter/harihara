@@ -16,9 +16,38 @@ description:         Cleans music metadata,
                      Maintains sqlite database of music,
                      Provides HTTP api to music browsing/playing.
 
+library
+  hs-source-dirs:      src
+  build-depends:       base ==4.6.*,
+                       configurator ==0.2.*,
+                       lens ==3.9.*,
+                       text ==0.11.*,
+                       aeson ==0.6.*,
+                       bytestring ==0.10.*,
+                       network ==2.4.*,
+                       liblastfm ==0.1.*,
+                       aeson-pretty ==0.7.*,
+                       either ==3.4.*,
+                       transformers ==0.3.*
+
+  other-extensions:    OverloadedStrings,
+                       DataKinds,
+                       FlexibleInstances,
+                       TemplateHaskell
+                       
+  exposed-modules:     Harihara.Lastfm.Config
+                       Harihara.Lastfm.Parsers
+                       Harihara.Lastfm.Parsers.Extras
+                       Harihara.Lastfm.Parsers.Types
+                       Harihara.Lastfm.Requests
+  ghc-options:         -Wall
+  default-language:    Haskell2010
+                       
+
 executable harihara
-  main-is:             Main.hs
-  -- other-modules:       
+  hs-source-dirs:      src
+  main-is:             Harihara/Main.hs
+
   other-extensions:    OverloadedStrings,
                        DataKinds,
                        FlexibleInstances,
@@ -33,9 +62,9 @@ executable harihara
                        network ==2.4.*,
                        liblastfm ==0.1.*,
                        aeson-pretty ==0.7.*,
-                       either ==3.4.*
+                       either ==3.4.*,
+                       transformers ==0.3.*
 
   ghc-options:         -Wall
                        
-  hs-source-dirs:      src
   default-language:    Haskell2010

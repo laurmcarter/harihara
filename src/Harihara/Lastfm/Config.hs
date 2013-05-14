@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
 
-module Config where
+module Harihara.Lastfm.Config where
 
 import Data.Configurator
 import Data.Configurator.Types

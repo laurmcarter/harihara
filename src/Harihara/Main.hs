@@ -8,9 +8,9 @@ import Network.Lastfm
 import qualified Data.Text as T
 import System.Environment
 
-import Config
-import Requests
-import Parsers.Types
+import Harihara.Lastfm.Config
+import Harihara.Lastfm.Requests
+import Harihara.Lastfm.Parsers.Types
 
 -- | .lastfm_auth must include two keys,
 --      api-key :: String
@@ -25,12 +25,9 @@ main :: IO ()
 main = do
   cfg <- getConfig configFiles
   srch <- getSearchTerm
-  ars <- similarArtists srch cfg 
-  debug ars print
-
-similarArtists :: MonadDebug r d => T.Text -> LastfmCfg Send -> IO (r [T.Text])
-similarArtists art cfg = runRequest $ do
-  cor <- artist_getCorrection art cfg
-  sim <- artist_getSimilar (cor ^. artistName) cfg
-  return $ map (^. artistName) sim
+  sim <- runRequest $ do
+    cor <- artist_getCorrection srch cfg
+    sim <- artist_getSimilar (cor ^. artistName) cfg
+    return $ map (^. artistName) sim
+  debug print sim
 

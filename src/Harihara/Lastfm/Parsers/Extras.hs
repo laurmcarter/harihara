@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parsers.Extras where
+module Harihara.Lastfm.Parsers.Extras where
 
 import Data.Aeson.Types
 

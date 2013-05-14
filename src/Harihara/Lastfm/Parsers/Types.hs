@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Parsers.Types where
+module Harihara.Lastfm.Parsers.Types where
 
 import Data.Aeson.Types
 
@@ -10,7 +10,7 @@ import Control.Lens
 import Control.Monad
 import Data.Text
 
-import Parsers.Extras
+import Harihara.Lastfm.Parsers.Extras
 
 type URL = Text
 
