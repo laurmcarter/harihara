@@ -29,5 +29,5 @@ main = do
     cor <- artist_getCorrection srch cfg
     sim <- artist_getSimilar (cor ^. artistName) cfg
     return $ map (^. artistName) sim
-  debug print sim
+  whenJust sim print
 
