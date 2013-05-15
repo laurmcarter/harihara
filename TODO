@@ -1,4 +1,14 @@
 
+* Lastfm
+** Debugging
+*** Multilevel Logging
+  - Replacement for MaybeT/EitherT
+  - switch to ErrorT ... IO ?
+  - Four level model from Din ?
+   1. LogError -- unrecoverable failure
+   2. LogWarn  -- potential problem
+   3. LogInfo  -- task description
+   4. LogDebug -- data processing output
 
 * Tag
 ** Metadata matching heuristics
@@ -6,18 +16,23 @@
 ** File location conventions
 
 * DB
-
-* Transcoding
+** Backend
+ - Database.SQL
+ - HDBC
+ - Database.Persist
+** Directory watching
 
 * UI
 ** Searching
 ** Browsing
 ** Playback
+*** Transcoding
 ** Info
 
-* TagLib library extraction
+* Metadata library extraction
+** libavformat FFI
 
-* Din integration
+* Din integration ?
 ** Source abstraction
 *** Streaming services
 
