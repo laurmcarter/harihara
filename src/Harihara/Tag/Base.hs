@@ -1,19 +1,18 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE EmptyDataDecls #-}
 
-module Harihara.Tag.Base (
-    withTags
+module Harihara.Tag.Base
+  ( withTags
   , Tag()
-  , getTitle
-  , getArtist
-  , getAlbum
-  , getComment
-  , getGenre
-  , getYear
-  , getTrack
+  , getTitle   , setTitle  
+  , getArtist  , setArtist 
+  , getAlbum   , setAlbum  
+  , getComment , setComment
+  , getGenre   , setGenre  
+  , getYear    , setYear   
+  , getTrack   , setTrack  
   ) where
 
-import Control.Monad ((<=<))
 import Data.Word (Word8)
 import Foreign.C.String (CString,withCString)
 import Foreign.C.Types (CInt(..))
@@ -74,49 +73,47 @@ withTags path k =
 -- | Abstract Tag object.
 data Tag
 
-type CSetString = Ptr Tag -> Ptr Word8 -> IO ()
+type SetString = Ptr Tag -> Ptr Word8 -> IO ()
 
-packString :: (Ptr Tag -> Ptr Word8 -> IO ()) -> SetString
-packString f txt = withForeignPtr ptr . f
+packString :: SetString -> T.Text -> Ptr Tag -> IO ()
+packString k txt = withForeignPtr ptr . k
   where
   (ptr,_,_) = SI.toForeignPtr $ T.encodeUtf8 txt
 
-type SetString = T.Text -> Ptr Tag -> IO ()
-
-setTitle :: SetString
+setTitle :: T.Text -> Ptr Tag -> IO ()
 setTitle = packString c_taglib_tag_set_title
 
 foreign import ccall "taglib_tag_set_title"
-  c_taglib_tag_set_title :: CSetString
+  c_taglib_tag_set_title :: SetString
 
-setArtist :: SetString
+setArtist :: T.Text -> Ptr Tag -> IO ()
 setArtist = packString c_taglib_tag_set_artist
 
 foreign import ccall "taglib_tag_set_artist"
-  c_taglib_tag_set_artist :: CSetString
+  c_taglib_tag_set_artist :: SetString
 
-setAlbum :: SetString
+setAlbum :: T.Text -> Ptr Tag -> IO ()
 setAlbum = packString c_taglib_tag_set_album
 
 foreign import ccall "taglib_tag_set_album"
-  c_taglib_tag_set_album :: CSetString
+  c_taglib_tag_set_album :: SetString
 
-setComment :: SetString
+setComment :: T.Text -> Ptr Tag -> IO ()
 setComment = packString c_taglib_tag_set_comment
 
 foreign import ccall "taglib_tag_set_comment"
-  c_taglib_tag_set_comment :: CSetString
+  c_taglib_tag_set_comment :: SetString
 
-setGenre :: SetString
+setGenre :: T.Text -> Ptr Tag -> IO ()
 setGenre = packString c_taglib_tag_set_genre
 
 foreign import ccall "taglib_tag_set_genre"
-  c_taglib_tag_set_genre :: CSetString
+  c_taglib_tag_set_genre :: SetString
 
 
-type CGetString = Ptr Tag -> IO (Ptr Word8)
+type GetString = Ptr Tag -> IO (Ptr Word8)
 
-unpackString :: CGetString -> Ptr Tag -> IO T.Text
+unpackString :: GetString -> Ptr Tag -> IO T.Text
 unpackString k c_tag = do
   c_str <- k c_tag
   len   <- lengthArray0 0 c_str
@@ -126,34 +123,49 @@ getTitle :: Ptr Tag -> IO T.Text
 getTitle  = unpackString c_taglib_tag_title
 
 foreign import ccall "taglib_tag_title"
-  c_taglib_tag_title :: CGetString
+  c_taglib_tag_title :: GetString
 
 getArtist :: Ptr Tag -> IO T.Text
 getArtist  = unpackString c_taglib_tag_artist
 
 foreign import ccall "taglib_tag_artist"
-  c_taglib_tag_artist :: CGetString
+  c_taglib_tag_artist :: GetString
 
 getAlbum :: Ptr Tag -> IO T.Text
 getAlbum  = unpackString c_taglib_tag_album
 
 foreign import ccall "taglib_tag_album"
-  c_taglib_tag_album :: CGetString
+  c_taglib_tag_album :: GetString
 
 getComment :: Ptr Tag -> IO T.Text
 getComment  = unpackString c_taglib_tag_comment
 
 foreign import ccall "taglib_tag_comment"
-  c_taglib_tag_comment :: CGetString
+  c_taglib_tag_comment :: GetString
 
 getGenre :: Ptr Tag -> IO T.Text
 getGenre  = unpackString c_taglib_tag_genre
 
 foreign import ccall "taglib_tag_genre"
-  c_taglib_tag_genre :: CGetString
+  c_taglib_tag_genre :: GetString
 
 
-type SetInt    = CInt   -> Ptr Tag -> IO ()
+type SetInt = CInt -> Ptr Tag -> IO ()
+
+packInt :: SetInt -> Int -> Ptr Tag -> IO ()
+packInt k = k . fromInteger . toInteger
+
+setYear :: Int -> Ptr Tag -> IO ()
+setYear = packInt c_taglib_tag_set_year
+
+foreign import ccall "taglib_tag_set_year"
+  c_taglib_tag_set_year :: SetInt
+
+setTrack :: Int -> Ptr Tag -> IO ()
+setTrack = packInt c_taglib_tag_set_track
+
+foreign import ccall "taglib_tag_set_track"
+  c_taglib_tag_set_track :: SetInt
 
 type GetInt = Ptr Tag -> IO CInt
 
@@ -171,3 +183,4 @@ getTrack  = unpackInt c_taglib_tag_track
 
 foreign import ccall "taglib_tag_track"
   c_taglib_tag_track :: GetInt
+
