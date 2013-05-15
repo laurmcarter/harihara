@@ -5,7 +5,7 @@ module Harihara.Tag (
   , getSongInfo
   ) where
 
-import Tag.Base
+import Harihara.Tag.Base
 
 import Control.Applicative ((<$>),(<*>))
 import Data.Typeable (Typeable)

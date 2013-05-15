@@ -1,33 +1,26 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
 
+module Harihara.Lastfm
+  ( module Harihara.Lastfm
+  , module Harihara.Lastfm.Base
+  , module Harihara.Lastfm.Config
+  , module Harihara.Lastfm.Parsers
+  ) where
+
 import Control.Lens
-import Data.Configurator
 import Network.Lastfm
 
 import qualified Data.Text as T
-import System.Environment
 
+import Harihara.Lastfm.Base
 import Harihara.Lastfm.Config
-import Harihara.Lastfm.Requests
-import Harihara.Lastfm.Parsers.Types
+import Harihara.Lastfm.Parsers
 
--- | .lastfm_auth must include two keys,
---      api-key :: String
---      secret  :: String
-configFiles :: [ConfigFile]
-configFiles = [ Required "$(HOME)/.lastfm_auth" ]
+--------------------------------------------------------------------------------
 
-getSearchTerm :: IO T.Text
-getSearchTerm = T.pack . unwords <$> getArgs
-
-main :: IO ()
-main = do
-  cfg <- getConfig configFiles
-  srch <- getSearchTerm
-  sim <- runRequest $ do
-    cor <- artist_getCorrection srch cfg
-    sim <- artist_getSimilar (cor ^. artistName) cfg
-    return $ map (^. artistName) sim
-  whenJust sim print
+getSimilarArtists :: Debug r d => LastfmCfg Send -> T.Text -> IO (r [ArtistResult])
+getSimilarArtists cfg art = runRequest $ do
+  cor <- artist_getCorrection art cfg
+  artist_getSimilar (cor ^. artistName) cfg
 

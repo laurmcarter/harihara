@@ -7,12 +7,9 @@ import Data.Configurator
 import Data.Configurator.Types
 import Network.Lastfm
 
-type ConfigFile = Worth FilePath
+import Harihara.Lastfm.Base
 
-data LastfmCfg a = LCfg
-  { getApiKey   :: Request JSON a APIKey
-  , signRequest :: Request JSON Sign Ready -> Request JSON Send Ready
-  }
+type ConfigFile = Worth FilePath
 
 mkLastfmCfg :: Config -> IO (LastfmCfg a)
 mkLastfmCfg c = LCfg                       <$>
