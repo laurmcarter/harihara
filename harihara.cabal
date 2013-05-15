@@ -46,7 +46,7 @@ library
 
 executable harihara
   hs-source-dirs:      src
-  main-is:             Harihara/Main.hs
+  main-is:             Harihara/Lastfm.hs
 
   other-extensions:    OverloadedStrings,
                        DataKinds,
