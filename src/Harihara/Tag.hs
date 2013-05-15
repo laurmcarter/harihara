@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
-module Tag (
+module Harihara.Tag (
     SongInfo(..)
   , getSongInfo
   ) where
@@ -30,14 +30,14 @@ instance E.Exception SongException
 getSongInfo :: FilePath -> IO SongInfo
 getSongInfo path = do
   mb <- withTags path $ \ f ->
-        SongInfo
-    <$> getArtist  f
-    <*> getTitle   f
-    <*> getAlbum   f
-    <*> getComment f
-    <*> getGenre   f
-    <*> getYear    f
-    <*> getTrack   f
+        SongInfo     <$>
+        getArtist  f <*>
+        getTitle   f <*>
+        getAlbum   f <*>
+        getComment f <*>
+        getGenre   f <*>
+        getYear    f <*>
+        getTrack   f 
   case mb of
     Just info -> return info
     Nothing   -> E.throwIO (FileNotFound path)
