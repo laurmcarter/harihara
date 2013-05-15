@@ -119,6 +119,7 @@ data ImageSize
   | Medium
   | Large
   | XLarge
+  | Mega
   | Other Text
   deriving (Show)
 
@@ -128,6 +129,7 @@ instance FromJSON ImageSize where
     "medium"     -> Medium
     "large"      -> Large
     "extralarge" -> XLarge
+    "mega"       -> Mega
     _            -> Other r
   parseJSON _ = mzero
 

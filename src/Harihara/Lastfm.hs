@@ -22,5 +22,6 @@ import Harihara.Lastfm.Parsers
 getSimilarArtists :: Debug r d => LastfmCfg Send -> T.Text -> IO (r [ArtistResult])
 getSimilarArtists cfg art = runRequest $ do
   cor <- artist_getCorrection art cfg
-  artist_getSimilar (cor ^. artistName) cfg
+  let art' = maybe art (^. artistName) cor
+  artist_getSimilar art' cfg
 

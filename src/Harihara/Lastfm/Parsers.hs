@@ -64,15 +64,19 @@ instance Search TrackResult where
 
 --------------------------------------------------------------------------------
 
-generic_parse_getCorrection :: FromJSON a => T.Text -> Value -> Parser a
-generic_parse_getCorrection typ =
-  parseJSON          >=>
-  (.: "corrections") >=>
-  (.: "correction")  >=>
-  (.: typ)
+generic_parse_getCorrection :: FromJSON a => T.Text -> Value -> Parser (Maybe a)
+generic_parse_getCorrection typ (Object o) = do
+  eo <- o .: "corrections" >>= couldBeEither
+    :: Parser (Either String Object)
+  case eo of
+    Left _ -> return Nothing
+    Right o' -> fmap Just $ do
+      r <- o' .: "correction"
+      r .: typ
+generic_parse_getCorrection _ _ = mzero
 
 class (FromJSON a) => GetCorrection a where
-  parse_getCorrection :: Value -> Parser a
+  parse_getCorrection :: Value -> Parser (Maybe a)
 
 instance GetCorrection ArtistResult where
   parse_getCorrection = generic_parse_getCorrection "artist"
