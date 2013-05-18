@@ -5,12 +5,14 @@ module Harihara.Tag (
   , getSongInfo
   ) where
 
-import Harihara.Tag.Base
+import Audio.TagLib
 
 import Control.Applicative ((<$>),(<*>))
 import Data.Typeable (Typeable)
 import qualified Control.Exception as E
 import qualified Data.Text as T
+
+import Harihara.Log
 
 data SongInfo =  SongInfo
   { songArtist  :: !T.Text
@@ -22,22 +24,17 @@ data SongInfo =  SongInfo
   , songTrack   :: !Int
   } deriving (Show)
 
-data SongException = FileNotFound FilePath
-    deriving (Show,Typeable)
-
-instance E.Exception SongException
-
 getSongInfo :: FilePath -> IO SongInfo
 getSongInfo path = do
-  mb <- withTags path $ \ f ->
-        SongInfo     <$>
-        getArtist  f <*>
-        getTitle   f <*>
-        getAlbum   f <*>
-        getComment f <*>
-        getGenre   f <*>
-        getYear    f <*>
-        getTrack   f 
+  mb <- withFile path $
+        SongInfo   <$>
+        getArtist  <*>
+        getTitle   <*>
+        getAlbum   <*>
+        getComment <*>
+        getGenre   <*>
+        getYear    <*>
+        getTrack   
   case mb of
     Just info -> return info
     Nothing   -> E.throwIO (FileNotFound path)

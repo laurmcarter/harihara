@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
 
 module Harihara.Lastfm.Parsers 
   ( module Harihara.Lastfm.Parsers
@@ -22,7 +21,7 @@ generic_parse_getInfo typ =
   parseJSON >=>
   (.: typ)
 
-class (FromJSON a) => GetInfo a where
+class (Show a, FromJSON a) => GetInfo a where
   parse_getInfo :: Value -> Parser a
 
 instance GetInfo AlbumResult where
@@ -47,7 +46,7 @@ generic_parse_search typ =
   (.: typ)                      >=>
   oneOrMore
 
-class (FromJSON a) => Search a where
+class (Show a, FromJSON a) => Search a where
   parse_search  :: Value -> Parser [a]
 
 instance Search AlbumResult where
@@ -75,7 +74,7 @@ generic_parse_getCorrection typ (Object o) = do
       r .: typ
 generic_parse_getCorrection _ _ = mzero
 
-class (FromJSON a) => GetCorrection a where
+class (Show a, FromJSON a) => GetCorrection a where
   parse_getCorrection :: Value -> Parser (Maybe a)
 
 instance GetCorrection ArtistResult where
@@ -90,7 +89,7 @@ generic_parse_getSimilar typ =
   (.: typ)                            >=>
   oneOrMore
 
-class (FromJSON a) => GetSimilar a where
+class (Show a, FromJSON a) => GetSimilar a where
   parse_getSimilar :: Value -> Parser [a]
 
 instance GetSimilar ArtistResult where

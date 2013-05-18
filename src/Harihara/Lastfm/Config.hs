@@ -11,11 +11,11 @@ import Harihara.Lastfm.Base
 
 type ConfigFile = Worth FilePath
 
-mkLastfmCfg :: Config -> IO (LastfmCfg a)
-mkLastfmCfg c = LCfg                       <$>
-  (apiKey <$> require c "api-key")         <*>
+mkLastfmEnv :: Config -> IO LastfmEnv
+mkLastfmEnv c = LastfmEnv          <$>
+  (apiKey <$> require c "api-key") <*>
   (sign <$> Secret <$> require c "secret")
 
-getConfig :: [ConfigFile] -> IO (LastfmCfg auth)
-getConfig fs = load fs >>= mkLastfmCfg
+loadLastfmEnv :: [ConfigFile] -> IO LastfmEnv
+loadLastfmEnv fs = load fs >>= mkLastfmEnv
 
