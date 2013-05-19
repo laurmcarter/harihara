@@ -1,14 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DataKinds #-}
 
 import Data.Configurator
-import Network.Lastfm
 
-import qualified Data.Text as T
-import System.Environment
+import Control.Monad.IO.Class (liftIO)
+import Data.Text
 
-import Harihara.Lastfm
-import Harihara.Tag
+import Harihara
 
 -- | .lastfm_auth must include two keys,
 --      api-key :: String
@@ -16,12 +13,8 @@ import Harihara.Tag
 configFiles :: [ConfigFile]
 configFiles = [ Required "$(HOME)/.lastfm_auth" ]
 
-getSearchTerm :: IO T.Text
-getSearchTerm = T.pack . unwords <$> getArgs
-
 main :: IO ()
-main = do
-  cfg <- load configFiles
-  lfmEnv <- mkLastfmEnv cfg
-  return ()
+main = harihara configFiles $ \fs -> do
+  as <- tagFiles fs getSongInfo
+  liftIO $ print as
 

@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FunctionalDependencies #-}
 
 module Harihara.Lastfm.Base where
 
 import Control.Exception
+import Control.Monad.IO.Class
 import Data.Aeson.Encode.Pretty
 import Data.Aeson.Types
 import Network.Lastfm
@@ -18,6 +18,7 @@ import qualified Data.ByteString.Lazy.Char8 as C8
 
 import Harihara.Lastfm.Parsers
 import Harihara.Log
+import Harihara.Utils
 
 data LastfmEnv = LastfmEnv
   { getApiKey   :: LfmRequest APIKey
@@ -27,10 +28,9 @@ data LastfmEnv = LastfmEnv
 type LfmRequest = Request JSON Send
 type LfmRequestAuth = Request JSON Sign
 
-class (Functor m, Monad m, MonadLog m) => MonadLastfm m where
+class (Functor m, Monad m, MonadIO m, MonadLog m) 
+  => MonadLastfm m where
   getLastfmEnv :: m LastfmEnv
-  lfmIO     :: IO a -> m a
-  lfmThrow  :: Exception e => e -> m a
 
 type KeyedRequest = LfmRequest (APIKey -> Ready)
 
@@ -39,22 +39,21 @@ type KeyedRequest = LfmRequest (APIKey -> Ready)
 -- TODO: add logging
 sendRequest :: (MonadLastfm m) => (Value -> Parser a) -> KeyedRequest -> m a
 sendRequest prs req = do
+  logDebug "Sending request to "
   key <- getApiKey <$> getLastfmEnv
-  mjs <- lfmIO $ lastfm $ req <*> key
-  withMaybe mjs (lfmThrow NoResponse) $ \js ->
-    withEither (parseEither prs js)
-      (lfmThrow . ParseError)
-      return
+  mjs <- liftIO $ lastfm $ req <*> key
+  case mjs of
+    Nothing -> do
+      logError "No response from last.fm"
+      liftIO $ throw NoResponse
+    Just js -> do
+      withEither (parseEither prs js)
+        (liftIO . throw . ParseError)
+        return
 
 ----------------------------------------
 
 -- TODO write logging functions
-
-withEither :: Either a b -> (a -> c) -> (b -> c) -> c
-withEither m fa fb = either fa fb m
-
-withMaybe :: Maybe a -> b -> (a -> b) -> b
-withMaybe m d f = maybe d f m
 
 {-
 instance Debug (Either (Maybe Value)) (EitherT (Maybe Value)) where

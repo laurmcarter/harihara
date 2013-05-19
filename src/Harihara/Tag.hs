@@ -1,18 +1,20 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 
-module Harihara.Tag (
-    SongInfo(..)
-  , getSongInfo
-  ) where
+module Harihara.Tag where
 
 import Audio.TagLib
 
 import Control.Applicative ((<$>),(<*>))
-import Data.Typeable (Typeable)
-import qualified Control.Exception as E
+import Control.Monad.IO.Class
 import qualified Data.Text as T
 
 import Harihara.Log
+
+class (Functor m, Monad m, MonadIO m, MonadLog m)
+  => MonadTag m where
+  tagFiles :: [FilePath] -> TagLib a -> m (Maybe [a])
+  tagFiles fs = liftIO . withFiles fs
+  tagFile  :: FilePath -> TagLib a -> m (Maybe a)
+  tagFile  f  = liftIO . withFile f
 
 data SongInfo =  SongInfo
   { songArtist  :: !T.Text
@@ -24,18 +26,14 @@ data SongInfo =  SongInfo
   , songTrack   :: !Int
   } deriving (Show)
 
-getSongInfo :: FilePath -> IO SongInfo
-getSongInfo path = do
-  mb <- withFile path $
-        SongInfo   <$>
-        getArtist  <*>
-        getTitle   <*>
-        getAlbum   <*>
-        getComment <*>
-        getGenre   <*>
-        getYear    <*>
-        getTrack   
-  case mb of
-    Just info -> return info
-    Nothing   -> E.throwIO (FileNotFound path)
+getSongInfo :: TagLib SongInfo
+getSongInfo  =
+  SongInfo   <$>
+  getArtist  <*>
+  getTitle   <*>
+  getAlbum   <*>
+  getComment <*>
+  getGenre   <*>
+  getYear    <*>
+  getTrack   
 

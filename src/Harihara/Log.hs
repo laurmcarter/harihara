@@ -38,11 +38,11 @@ data LogLevel
   | LogWarn
   | LogInfo
   | LogDebug
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 class (Functor m, Monad m) => MonadLog m where
   getLogLevel :: m LogLevel
-  writeLog    :: String -> m ()
+  writeLog    :: LogLevel -> String -> m ()
 
 logError :: (MonadLog m) => String -> m ()
 logError  = filterLog LogError
@@ -59,5 +59,5 @@ logDebug  = filterLog LogDebug
 filterLog :: (MonadLog m) => LogLevel -> String -> m ()
 filterLog lvl msg = do
   shouldLog <- (lvl <=) <$> getLogLevel
-  when shouldLog $ writeLog msg
+  when shouldLog $ writeLog lvl msg
 

@@ -9,7 +9,6 @@ module Harihara.Lastfm (
   ) where
 
 import Control.Lens
-import Network.Lastfm
 
 import Data.Text
 
