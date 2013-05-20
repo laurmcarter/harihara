@@ -2,8 +2,10 @@
 
 import Data.Configurator
 
+import Control.Applicative ((<$>))
 import Control.Monad.IO.Class (liftIO)
 import Data.Text
+import System.Environment
 
 import Harihara
 
@@ -14,7 +16,9 @@ configFiles :: [ConfigFile]
 configFiles = [ Required "$(HOME)/.lastfm_auth" ]
 
 main :: IO ()
-main = harihara configFiles $ \fs -> do
-  as <- tagFiles fs getSongInfo
-  liftIO $ print as
+main = do
+  opts <- parseOptions <$> getArgs
+  harihara configFiles opts $ \fs -> do
+    as <- tagFiles fs getSongInfo
+    logDebug $ show as
 
