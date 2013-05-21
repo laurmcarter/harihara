@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Harihara.Lastfm.Base where
 
 import Control.Exception
-import Control.Monad.IO.Class
+import MonadLib
 import Data.Aeson.Encode.Pretty
 import Data.Aeson.Types
 import Network.Lastfm
@@ -18,7 +19,6 @@ import qualified Data.ByteString.Lazy.Char8 as C8
 
 import Harihara.Lastfm.Parsers
 import Harihara.Log
-import Harihara.Utils
 
 data LastfmEnv = LastfmEnv
   { getApiKey   :: LfmRequest APIKey
@@ -28,7 +28,7 @@ data LastfmEnv = LastfmEnv
 type LfmRequest = Request JSON Send
 type LfmRequestAuth = Request JSON Sign
 
-class (Functor m, Monad m, MonadIO m, MonadLog m) 
+class (Functor m, Monad m, BaseM m IO, MonadLog m) 
   => MonadLastfm m where
   getLastfmEnv :: m LastfmEnv
 
@@ -41,11 +41,11 @@ sendRequest :: (Show a, MonadLastfm m) => (Value -> Parser a) -> KeyedRequest ->
 sendRequest prs req = do
   key <- getApiKey <$> getLastfmEnv
   logInfo "Lastfm: Sending..."
-  mjs <- liftIO $ lastfm $ req <*> key
+  mjs <- inBase $ lastfm $ req <*> key
   case mjs of
     Nothing -> do
       logError "Lastfm: No response"
-      liftIO $ throw NoResponse
+      inBase $ throw NoResponse
     Just js -> do
       logInfo "Lastfm: Received"
       let jsonStr = C8.unpack $ encodePretty js
@@ -55,37 +55,11 @@ sendRequest prs req = do
         Left err -> do
           logError "Lastfm: No Parse"
           logDebug $ "Parse failed with: " ++ err
-          liftIO $ throw $ ParseError err
+          inBase $ throw $ ParseError err
         Right res -> do
           logInfo "Lastfm: Parse Successful"
           logDebug $ "Parse result: " ++ show res
           return res
-
-----------------------------------------
-
--- TODO write logging functions
-
-{-
-instance Debug (Either (Maybe Value)) (EitherT (Maybe Value)) where
-  sendRequest prs req cfg = do
-    res <- lift $ lastfm $ req <*> getApiKey cfg
-    EitherT $ case res of
-      Nothing -> do
-        putStrLn "no response"
-        return $ Left res
-      Just js -> case parseMaybe prs js of
-        Nothing -> do
-          putStrLn "parse failed:"
-          C8.putStrLn $ encodePretty js
-          putStrLn ""
-          return $ Left res
-        Just a -> do
-          putStrLn "parse successful:"
-          print a
-          putStrLn ""
-          return $ Right a
-  runRequest = runEitherT
--}
 
 --------------------------------------------------------------------------------
 

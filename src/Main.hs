@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import Data.Configurator
+import MonadLib
 
 import Control.Applicative    ( (<$>) )
 import Control.Lens           ( view )
-import Control.Monad.IO.Class ( liftIO )
 import Data.Maybe             ( listToMaybe )
 import Data.Text as T         ( unlines, append )
 import Data.Text.IO as T      ( putStrLn )
@@ -28,7 +28,7 @@ main = do
     whenJust mn $ \artNm -> do
       sims <- getSimilarArtists artNm
       let ns = map (view artistName) sims
-      liftIO $ do
+      inBase $ do
         T.putStrLn $ "Similar artists to " `append` artNm
         T.putStrLn $ T.unlines ns
         

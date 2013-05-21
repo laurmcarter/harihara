@@ -1,68 +1,86 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Harihara.Monad where
 
-import Control.Applicative
 import Control.Lens
-import Control.Monad
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Reader
+import MonadLib
 
 import Harihara.Lastfm
 import Harihara.Log
 import Harihara.Options
 import Harihara.Tag
 
+class (Monad m) => EvalM e m a r | e m a -> r where
+  eval :: e -> m a -> r
+
+-- HHBoot Monad ----------------------------------------------------------------
+
 newtype HHBoot a = HHBoot
   { runHHBoot :: ReaderT HariharaOptions IO a
-  }
+  } deriving (Functor, Monad)
 
-instance Functor HHBoot where
-  fmap f (HHBoot m) = HHBoot $ fmap f m
+instance ReaderM HHBoot HariharaOptions where
+  ask = HHBoot ask
 
-instance Monad HHBoot where
-  return = HHBoot . return
-  (HHBoot m) >>= f = HHBoot (m >>= runHHBoot . f)
+instance BaseM HHBoot IO where
+  inBase = HHBoot . inBase
 
-instance Applicative HHBoot where
-  pure = return
-  (<*>) = ap
+instance EvalM HariharaOptions HHBoot a (IO a) where
+  eval opts = runReaderT opts . runHHBoot
 
-getOpts :: HHBoot HariharaOptions
-getOpts = HHBoot ask
+getBootOpts :: HHBoot HariharaOptions
+getBootOpts = ask
 
-evalHHBoot :: HHBoot a -> HariharaOptions -> IO a
-evalHHBoot m opts = flip runReaderT opts $ runHHBoot m
-
-instance MonadIO HHBoot where
-  liftIO = HHBoot . ReaderT . const
+fromBootOpts :: (HariharaOptions -> a) ->  HHBoot a
+fromBootOpts = asks
 
 instance MonadLog HHBoot where
-  getLogLevel = _optsLogLevel <$> getOpts
-  writeLog ll = liftIO . putStrLn . (renderLevel ll ++)
-  
+  getLogLevel = asks _optsLogLevel
+  writeLog ll = inBase . putStrLn . (renderLevel ll ++)
+
+-- Harihara Monad --------------------------------------------------------------
 
 newtype Harihara a = Harihara
-  { runHarihara :: ReaderT HariharaEnv IO a }
+  { runHarihara :: ReaderT HariharaEnv IO a
+  } deriving (Functor, Monad)
+
+instance BaseM Harihara IO where
+  inBase = Harihara . inBase
+
+instance ReaderM Harihara HariharaEnv where
+  ask = Harihara ask
+
+instance EvalM HariharaEnv Harihara a (IO a) where
+  eval env = runReaderT env . runHarihara
+
+instance MonadLog Harihara where
+  getLogLevel = fromHHEnv logLevel
+  writeLog ll = inBase . putStrLn . (renderLevel ll ++)
 
 data HariharaEnv = HariharaEnv
   { lastfmEnv :: LastfmEnv
   , logLevel  :: LogLevel
   }
 
-evalHarihara :: Harihara a -> HariharaEnv -> IO a
-evalHarihara m env = flip runReaderT env $ runHarihara m
+getHHEnv :: Harihara HariharaEnv
+getHHEnv = ask
 
-getEnv :: Harihara HariharaEnv
-getEnv = Harihara ask
+fromHHEnv :: (HariharaEnv -> a) -> Harihara a
+fromHHEnv = asks
 
-fromEnv :: (HariharaEnv -> a) -> Harihara a
-fromEnv f = f <$> getEnv
+instance MonadLastfm Harihara where
+  getLastfmEnv = fromHHEnv lastfmEnv
 
-bootLastfm :: Harihara a -> LastfmEnv -> HHBoot a
-bootLastfm m lfmEnv = do
-  opts <- getOpts
-  let hhEnv = buildEnv opts lfmEnv
-  liftIO $ evalHarihara m hhEnv
+instance MonadTag Harihara
+
+-- Running full Harihara from HHBoot Monad
+instance EvalM LastfmEnv Harihara a (HHBoot a) where
+  eval lfmEnv m = do
+    opts <- getBootOpts
+    let hhEnv = buildEnv opts lfmEnv
+    inBase $ eval hhEnv m
 
 buildEnv :: HariharaOptions -> LastfmEnv -> HariharaEnv
 buildEnv hhOpts lfmEnv = HariharaEnv
@@ -70,33 +88,10 @@ buildEnv hhOpts lfmEnv = HariharaEnv
   , logLevel  = hhOpts ^. optsLogLevel
   }
 
-instance Functor Harihara where
-  fmap f (Harihara m) = Harihara $ fmap f m
-
-instance Applicative Harihara where
-  pure  = return
-  (<*>) = ap
-
-instance Monad Harihara where
-  return = Harihara . return
-  (Harihara m) >>= f = Harihara (m >>= runHarihara . f)
-
-instance MonadIO Harihara where
-  liftIO = Harihara . ReaderT . const
-
-instance MonadLog Harihara where
-  getLogLevel = fromEnv logLevel
-  writeLog ll = liftIO . putStrLn . (renderLevel ll ++)
-
 renderLevel :: LogLevel -> String
 renderLevel ll = case ll of
   LogError -> "[ Error ] "
   LogWarn  -> "[ Warn  ] "
   LogInfo  -> "[ Info  ] "
   LogDebug -> "[ Debug ] "
-
-instance MonadLastfm Harihara where
-  getLastfmEnv = fromEnv lastfmEnv
-
-instance MonadTag Harihara
 

@@ -1,20 +1,21 @@
+{-# LANGUAGE FlexibleContexts #-}
 
 module Harihara.Tag where
 
 import Audio.TagLib
 
 import Control.Applicative ((<$>),(<*>))
-import Control.Monad.IO.Class
+import MonadLib
 import qualified Data.Text as T
 
 import Harihara.Log
 
-class (Functor m, Monad m, MonadIO m, MonadLog m)
+class (Functor m, Monad m, BaseM m IO, MonadLog m)
   => MonadTag m where
   tagWithFiles :: [FilePath] -> TagLib a -> m (Maybe [a])
-  tagWithFiles fs = liftIO . withFiles fs
+  tagWithFiles fs = inBase . withFiles fs
   tagWithFile  :: FilePath -> TagLib a -> m (Maybe a)
-  tagWithFile  f  = liftIO . withFile f
+  tagWithFile  f  = inBase . withFile f
 
 data SongInfo =  SongInfo
   { songArtist  :: !T.Text
