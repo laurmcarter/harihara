@@ -84,9 +84,9 @@ instance GetCorrection ArtistResult where
 
 generic_parse_getSimilar :: FromJSON a => T.Text -> Value -> Parser [a]
 generic_parse_getSimilar typ =
-  parseJSON                           >=>
-  (.: (T.concat ["similar",typ,"s"])) >=>
-  (.: typ)                            >=>
+  parseJSON                         >=>
+  (.: T.concat ["similar",typ,"s"]) >=>
+  (.: typ)                          >=>
   oneOrMore
 
 class (Show a, FromJSON a) => GetSimilar a where

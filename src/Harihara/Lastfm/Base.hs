@@ -37,19 +37,29 @@ type KeyedRequest = LfmRequest (APIKey -> Ready)
 --------------------------------------------------------------------------------
 
 -- TODO: add logging
-sendRequest :: (MonadLastfm m) => (Value -> Parser a) -> KeyedRequest -> m a
+sendRequest :: (Show a, MonadLastfm m) => (Value -> Parser a) -> KeyedRequest -> m a
 sendRequest prs req = do
-  logDebug "Sending request to "
   key <- getApiKey <$> getLastfmEnv
+  logInfo "Lastfm: Sending..."
   mjs <- liftIO $ lastfm $ req <*> key
   case mjs of
     Nothing -> do
-      logError "No response from last.fm"
+      logError "Lastfm: No response"
       liftIO $ throw NoResponse
     Just js -> do
-      withEither (parseEither prs js)
-        (liftIO . throw . ParseError)
-        return
+      logInfo "Lastfm: Received"
+      let jsonStr = C8.unpack $ encodePretty js
+      logDebug $ "Lastfm Response:\n" ++ jsonStr
+      logInfo "Lastfm: Parsing Response"
+      case parseEither prs js of
+        Left err -> do
+          logError "Lastfm: No Parse"
+          logDebug $ "Parse failed with: " ++ err
+          liftIO $ throw $ ParseError err
+        Right res -> do
+          logInfo "Lastfm: Parse Successful"
+          logDebug $ "Parse result: " ++ show res
+          return res
 
 ----------------------------------------
 

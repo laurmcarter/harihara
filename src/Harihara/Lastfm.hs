@@ -3,21 +3,20 @@
 
 module Harihara.Lastfm (
     module Harihara.Lastfm
-  , module Harihara.Lastfm.Base
-  , module Harihara.Lastfm.Config
-  , module Harihara.Lastfm.Parsers
+  , module H
   ) where
 
 import Control.Lens
 
 import Data.Text
 
-import Harihara.Lastfm.Base
-import Harihara.Lastfm.Config
-import Harihara.Lastfm.Parsers
+import Harihara.Lastfm.Base    as H
+import Harihara.Lastfm.Config  as H
+import Harihara.Lastfm.Parsers as H
 
 --------------------------------------------------------------------------------
 
+-- | Retrieve a list of artists similar to one given.
 getSimilarArtists :: (MonadLastfm m) => Text -> m [ArtistResult]
 getSimilarArtists ar = do
   cor <- artist_getCorrection ar

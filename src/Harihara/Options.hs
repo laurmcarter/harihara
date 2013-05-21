@@ -79,7 +79,7 @@ handleLogLevel ll =
     _       -> Nothing
 
 handleFile  :: String -> HariharaOptions -> HariharaOptions
-handleFile f = optsFiles %~ (S.insert f)
+handleFile f = optsFiles %~ S.insert f
 
 splitPrefix :: String -> String -> String
 splitPrefix prf s = case (prf,s) of

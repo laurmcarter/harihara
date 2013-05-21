@@ -11,10 +11,10 @@ import Harihara.Log
 
 class (Functor m, Monad m, MonadIO m, MonadLog m)
   => MonadTag m where
-  tagFiles :: [FilePath] -> TagLib a -> m (Maybe [a])
-  tagFiles fs = liftIO . withFiles fs
-  tagFile  :: FilePath -> TagLib a -> m (Maybe a)
-  tagFile  f  = liftIO . withFile f
+  tagWithFiles :: [FilePath] -> TagLib a -> m (Maybe [a])
+  tagWithFiles fs = liftIO . withFiles fs
+  tagWithFile  :: FilePath -> TagLib a -> m (Maybe a)
+  tagWithFile  f  = liftIO . withFile f
 
 data SongInfo =  SongInfo
   { songArtist  :: !T.Text
