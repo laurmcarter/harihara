@@ -120,7 +120,7 @@ data ImageSize
   | Large
   | XLarge
   | Mega
-  | Other Text
+  | Other !Text
   deriving (Show)
 
 instance FromJSON ImageSize where
