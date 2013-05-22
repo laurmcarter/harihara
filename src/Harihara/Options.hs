@@ -1,6 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Harihara.Options where
+module Harihara.Options 
+  ( parseOptions
+  , parseOptionsWith
+  , HariharaOptions (..)
+  , optsLogLevel
+  , optsFiles
+  ) where
 
 import Control.Lens
 
@@ -10,6 +16,8 @@ import qualified Data.Set as S
 import Harihara.Log
 import Harihara.Utils
 
+-- HariharaOptions -------------------------------------------------------------
+
 data HariharaOptions = HariharaOptions
   { _optsLogLevel :: LogLevel
   , _optsFiles    :: S.Set FilePath
@@ -17,16 +25,38 @@ data HariharaOptions = HariharaOptions
 
 makeLenses ''HariharaOptions
 
-defaultFlagHandlers :: [FlagHandler]
-defaultFlagHandlers =
-  [ ( "log" , "l" , handleLogLevel )
-  ]
-
 defaultOptions :: HariharaOptions
 defaultOptions = HariharaOptions
   { _optsLogLevel = LogError
   , _optsFiles    = S.empty
   }
+
+-- Handlers --------------------------------------------------------------------
+
+defaultFlagHandlers :: [FlagHandler]
+defaultFlagHandlers =
+  [ ( "log" , "l" , handleLogLevel )
+  ]
+
+handleLogLevel :: String -> OptionsBuilder
+handleLogLevel ll =
+  withMaybe parsedLevel id
+    (optsLogLevel .~)
+  where
+  parsedLevel = case ll of
+    "warn"  -> Just LogWarn
+    "info"  -> Just LogInfo
+    "debug" -> Just LogDebug
+    "0"     -> Just LogSilent
+    "2"     -> Just LogWarn
+    "3"     -> Just LogInfo
+    "4"     -> Just LogDebug
+    _       -> Nothing
+
+handleFile  :: String -> HariharaOptions -> HariharaOptions
+handleFile f = optsFiles %~ S.insert f
+
+-- Parsing Options -------------------------------------------------------------
 
 parseOptions :: [String] -> HariharaOptions
 parseOptions = parseOptionsWith defaultFlagHandlers
@@ -37,6 +67,8 @@ parseOptionsWith hs args = case args of
   ('-':flag):rest         -> shortFlag hs flag     $ parseOptionsWith hs rest
   f:rest                  -> handleFile f          $ parseOptionsWith hs rest
   _                       -> defaultOptions
+
+-- Parsing Options -------------------------------------------------------------
 
 type OptionsBuilder = HariharaOptions -> HariharaOptions
 
@@ -63,23 +95,6 @@ longFlag hs f a = loop hs
       | f == lf   -> h a
       | otherwise -> loop l'
     []            -> id
-
-handleLogLevel :: String -> OptionsBuilder
-handleLogLevel ll =
-  withMaybe parsedLevel id
-    (optsLogLevel .~)
-  where
-  parsedLevel = case ll of
-    "warn"  -> Just LogWarn
-    "info"  -> Just LogInfo
-    "debug" -> Just LogDebug
-    "2"     -> Just LogWarn
-    "3"     -> Just LogInfo
-    "4"     -> Just LogDebug
-    _       -> Nothing
-
-handleFile  :: String -> HariharaOptions -> HariharaOptions
-handleFile f = optsFiles %~ S.insert f
 
 splitPrefix :: String -> String -> String
 splitPrefix prf s = case (prf,s) of

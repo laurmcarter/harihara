@@ -34,7 +34,8 @@ instance Exception TagException
 -- Logging ---------------------------------------------------------------------
 
 data LogLevel
-  = LogError
+  = LogSilent
+  | LogError
   | LogWarn
   | LogInfo
   | LogDebug

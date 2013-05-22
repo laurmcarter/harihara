@@ -31,19 +31,19 @@ data AlbumResult = AlbumResult
 
 instance FromJSON AlbumResult where
   parseJSON (Object r) =
-      AlbumResult          <$>
-      r .:  "name"         <*>
-      r .:  "artist"       <*>
-      r .:  "id"           <*>
-      r .:  "url"          <*>
-      r .:  "image"        <*>
-      r .:? "mbid"         <*>
-      r .:? "releasedate"  <*>
-      (r .:? "tracks"
-        >>=? (.: "track")) <*>
-      (r .:? "toptags"
-        >>=? (.: "tag"))   <*>
-      r @@? "position"
+      AlbumResult              <$>
+      r .:       "name"        <*>
+      r .:       "artist"      <*>
+      r .:       "id"          <*>
+      r .:       "url"         <*>
+      r .:       "image"       <*>
+      r .:?      "mbid"        <*>
+      r .:?      "releasedate" <*>
+      (r .:?     "tracks"
+        >>=? (.: "track"))     <*>
+      (r .:?     "toptags"
+        >>=? (.: "tag"))       <*>
+      r @@?      "position"
   parseJSON _ = mzero
 
 --------------------------------------------------------------------------------
@@ -60,13 +60,13 @@ data ArtistResult = ArtistResult
 instance FromJSON ArtistResult where
   parseJSON (Object r) =
       ArtistResult          <$>
-      r .:  "name"          <*>
-      r .:  "url"           <*>
-      r .:? "mbid"          <*>
-      r .:? "image"         <*>
-      (r .:? "tags"
+      r .:       "name"     <*>
+      r .:       "url"      <*>
+      r .:?      "mbid"     <*>
+      r .:?      "image"    <*>
+      (r .:?     "tags"
         >>=? (.: "tag"))    <*>
-      (r .:? "similar"
+      (r .:?     "similar"
         >>=? (.: "artist"))
   parseJSON _ = mzero
 

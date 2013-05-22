@@ -13,7 +13,7 @@ import Harihara.Options
 import Harihara.Tag
 
 class (Monad m) => EvalM e m a r | e m a -> r where
-  eval :: e -> m a -> r
+  evalM :: e -> m a -> r
 
 -- HHBoot Monad ----------------------------------------------------------------
 
@@ -28,7 +28,7 @@ instance BaseM HHBoot IO where
   inBase = HHBoot . inBase
 
 instance EvalM HariharaOptions HHBoot a (IO a) where
-  eval opts = runReaderT opts . runHHBoot
+  evalM opts = runReaderT opts . runHHBoot
 
 getBootOpts :: HHBoot HariharaOptions
 getBootOpts = ask
@@ -53,7 +53,7 @@ instance ReaderM Harihara HariharaEnv where
   ask = Harihara ask
 
 instance EvalM HariharaEnv Harihara a (IO a) where
-  eval env = runReaderT env . runHarihara
+  evalM env = runReaderT env . runHarihara
 
 instance MonadLog Harihara where
   getLogLevel = fromHHEnv logLevel
@@ -77,10 +77,10 @@ instance MonadTag Harihara
 
 -- Running full Harihara from HHBoot Monad
 instance EvalM LastfmEnv Harihara a (HHBoot a) where
-  eval lfmEnv m = do
+  evalM lfmEnv m = do
     opts <- getBootOpts
     let hhEnv = buildEnv opts lfmEnv
-    inBase $ eval hhEnv m
+    inBase $ evalM hhEnv m
 
 buildEnv :: HariharaOptions -> LastfmEnv -> HariharaEnv
 buildEnv hhOpts lfmEnv = HariharaEnv
@@ -90,8 +90,9 @@ buildEnv hhOpts lfmEnv = HariharaEnv
 
 renderLevel :: LogLevel -> String
 renderLevel ll = case ll of
-  LogError -> "[ Error ] "
-  LogWarn  -> "[ Warn  ] "
-  LogInfo  -> "[ Info  ] "
-  LogDebug -> "[ Debug ] "
+  LogSilent -> "[ \"Silent\" ] "
+  LogError  -> "[ Error ] "
+  LogWarn   -> "[ Warn  ] "
+  LogInfo   -> "[ Info  ] "
+  LogDebug  -> "[ Debug ] "
 
