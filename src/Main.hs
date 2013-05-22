@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+import Audio.TagLib
 import Data.Configurator
 import MonadLib
 
@@ -25,9 +26,9 @@ main = harihara configFiles $ \fs -> do
   as <- tagWithFiles fs getSongInfo
   let mn = songArtist <$> (listToMaybe =<< as)
   whenJust mn $ \artNm -> do
-    sims <- getSimilarArtists artNm
+    (artNm',sims) <- getSimilarArtists artNm
     let ns = map (view artistName) sims
     inBase $ do
-      putStrLn $ "Similar artists to " ++ show artNm ++ ":\n"
+      putStrLn $ "Similar artists to " ++ show artNm' ++ ":\n"
       T.putStrLn $ T.unlines $ take 10 ns
 

@@ -6,6 +6,7 @@
 * Lastfm
 
 * Tag
+** Switch Maybe to Exception
 ** Metadata matching heuristics
 ** AcoustId fingerprinting
 ** File location conventions
