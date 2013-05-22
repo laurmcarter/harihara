@@ -27,7 +27,7 @@ makeLenses ''HariharaOptions
 
 defaultOptions :: HariharaOptions
 defaultOptions = HariharaOptions
-  { _optsLogLevel = LogError
+  { _optsLogLevel = LogInfo
   , _optsFiles    = S.empty
   }
 
@@ -44,10 +44,13 @@ handleLogLevel ll =
     (optsLogLevel .~)
   where
   parsedLevel = case ll of
+    "silent" -> Just LogSilent
+    "error" -> Just LogError
     "warn"  -> Just LogWarn
     "info"  -> Just LogInfo
     "debug" -> Just LogDebug
     "0"     -> Just LogSilent
+    "1"     -> Just LogError
     "2"     -> Just LogWarn
     "3"     -> Just LogInfo
     "4"     -> Just LogDebug

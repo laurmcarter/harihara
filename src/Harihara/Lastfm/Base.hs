@@ -39,7 +39,7 @@ type KeyedRequest = LfmRequest (APIKey -> Ready)
 sendRequest :: (Show a, MonadLastfm m) => (Value -> Parser a) -> KeyedRequest -> m a
 sendRequest prs req = do
   key <- getApiKey <$> getLastfmEnv
-  logDebug "Lastfm: Sending request"
+  logInfo "Lastfm: Sending request"
   mjs <- inBase $ lastfm $ req <*> key
   case mjs of
     Nothing -> do
@@ -49,7 +49,7 @@ sendRequest prs req = do
       logInfo "Lastfm: Received response"
       let jsonStr = C8.unpack $ encodePretty js
       logDebug $ "Lastfm Response:\n" ++ jsonStr
-      logDebug "Lastfm: Parsing Response"
+      logInfo "Lastfm: Parsing Response"
       case parseEither prs js of
         Left err -> do
           logError $  "Lastfm: No Parse: " ++ err
@@ -63,29 +63,29 @@ sendRequest prs req = do
 -- | generic function for Last.fm's *.search call.
 search :: (MonadLastfm m, Search a) => KeyedRequest -> m [a]
 search req = do
-  logDebug "Request type 'search'"
+  logInfo "Request type 'search'"
   sendRequest parse_search req
 
 --------------------
 
 album_search    :: (MonadLastfm m) => Text -> m [AlbumResult]
 album_search  al = do
-  logDebug $ "Album " ++ show al
+  logInfo $ "Album " ++ show al
   search $ Album.search  <*> album al
 
 artist_search   :: (MonadLastfm m) => Text -> m [ArtistResult]
 artist_search ar = do
-  logDebug $ "Artist " ++ show ar
+  logInfo $ "Artist " ++ show ar
   search $ Artist.search <*> artist ar
 
 tag_search      :: (MonadLastfm m) => Text -> m [TagResult]
 tag_search    tg = do
-  logDebug $ "Tag " ++ show tg
+  logInfo $ "Tag " ++ show tg
   search $ Tag.search    <*> tag tg
 
 track_search    :: (MonadLastfm m) => Text -> m [TrackResult]
 track_search  tr = do
-  logDebug $ "Track " ++ show tr
+  logInfo $ "Track " ++ show tr
   search $ Track.search  <*> track tr
 
 --------------------------------------------------------------------------------
@@ -93,46 +93,46 @@ track_search  tr = do
 -- | generic function for Last.fm's *.getInfo call.
 getInfo :: (MonadLastfm m, GetInfo a) => KeyedRequest -> m a
 getInfo req = do
-  logDebug "Request type 'getInfo'"
+  logInfo "Request type 'getInfo'"
   sendRequest parse_getInfo req
 
 --------------------
 
 artist_getInfo     :: (MonadLastfm m) => Text -> m ArtistResult
 artist_getInfo   ar = do
-  logDebug $ "Artist " ++ show ar
+  logInfo $ "Artist " ++ show ar
   getInfo $ Artist.getInfo <*> artist ar
 
 tag_getInfo        :: (MonadLastfm m) => Text -> m TagResult
 tag_getInfo      tg = do
-  logDebug $ "Tag " ++ show tg
+  logInfo $ "Tag " ++ show tg
   getInfo $ Tag.getInfo    <*> tag tg
 
 album_getInfo      :: (MonadLastfm m) => Text -> Text -> m AlbumResult
 album_getInfo ar al = do
-  logDebug $ "Artist " ++ show ar ++ ", Album " ++ show al
+  logInfo $ "Artist " ++ show ar ++ ", Album " ++ show al
   getInfo $ Album.getInfo  <*> artist ar <*> album al
 
 track_getInfo      :: (MonadLastfm m) => Text -> Text -> m TrackResult
 track_getInfo ar tr = do
-  logDebug $ "Artist " ++ show ar ++ ", Track " ++ show tr
+  logInfo $ "Artist " ++ show ar ++ ", Track " ++ show tr
   getInfo $ Track.getInfo  <*> artist ar <*> track tr
 
 ----------------------------------------
 
 album_getInfo_mbid    :: (MonadLastfm m) => Text -> m AlbumResult
 album_getInfo_mbid  mb = do
-  logDebug $ "MBID " ++ show mb
+  logInfo $ "MBID " ++ show mb
   getInfo $ Album.getInfo  <*> mbid mb
 
 artist_getInfo_mbid   :: (MonadLastfm m) => Text -> m ArtistResult
 artist_getInfo_mbid mb = do
-  logDebug $ "MBID " ++ show mb
+  logInfo $ "MBID " ++ show mb
   getInfo $ Artist.getInfo <*> mbid mb
 
 track_getInfo_mbid    :: (MonadLastfm m) => Text -> m TrackResult
 track_getInfo_mbid  mb = do
-  logDebug $ "MBID " ++ show mb
+  logInfo $ "MBID " ++ show mb
   getInfo $ Track.getInfo  <*> mbid mb
 
 -- tag_getInfo_mbid does not exist, as per liblastfm
@@ -142,12 +142,12 @@ track_getInfo_mbid  mb = do
 -- | generic function for Last.fm's *.getCorrection call.
 getCorrection :: (MonadLastfm m, GetCorrection a) => KeyedRequest -> m (Maybe a)
 getCorrection req = do
-  logDebug "Request type 'getCorrection'"
+  logInfo "Request type 'getCorrection'"
   sendRequest parse_getCorrection req
 
 artist_getCorrection :: (MonadLastfm m) => Text -> m (Maybe ArtistResult)
 artist_getCorrection ar = do
-  logDebug $ "Artist " ++ show ar
+  logInfo $ "Artist " ++ show ar
   getCorrection $ Artist.getCorrection <*> artist ar
 
 -- track_getCorrection does not exist, b/c last.FM responses seem to be useless
@@ -157,16 +157,16 @@ artist_getCorrection ar = do
 -- | generic function for Last.fm's *.getSimilar call.
 getSimilar :: (MonadLastfm m, GetSimilar a) => KeyedRequest -> m [a]
 getSimilar req = do
-  logDebug "Request type 'getSimilar'"
+  logInfo "Request type 'getSimilar'"
   sendRequest parse_getSimilar req
 
 artist_getSimilar   :: (MonadLastfm m) => Text -> m [ArtistResult]
 artist_getSimilar ar = do
-  logDebug $ "Artist " ++ show ar
+  logInfo $ "Artist " ++ show ar
   getSimilar $ Artist.getSimilar <*> artist ar
 
 tag_getSimilar      :: (MonadLastfm m) => Text -> m [TagResult]
 tag_getSimilar    tg = do
-  logDebug $ "Tag " ++ show tg
+  logInfo $ "Tag " ++ show tg
   getSimilar $ Tag.getSimilar    <*> tag tg
 

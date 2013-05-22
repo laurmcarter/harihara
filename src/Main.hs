@@ -6,8 +6,8 @@ import MonadLib
 import Control.Applicative    ( (<$>) )
 import Control.Lens           ( view )
 import Data.Maybe             ( listToMaybe )
-import Data.Text as T         ( unlines, append )
-import Data.Text.IO as T      ( putStrLn )
+import Data.Text as T         ( unlines )
+import qualified Data.Text.IO as T ( putStrLn )
 
 import Harihara
 
@@ -23,12 +23,11 @@ configFiles =
 main :: IO ()
 main = harihara configFiles $ \fs -> do
   as <- tagWithFiles fs getSongInfo
-  logInfo $ show as
   let mn = songArtist <$> (listToMaybe =<< as)
   whenJust mn $ \artNm -> do
     sims <- getSimilarArtists artNm
     let ns = map (view artistName) sims
     inBase $ do
-      T.putStrLn $ "Similar artists to " `append` artNm
-      T.putStrLn $ T.unlines ns
+      putStrLn $ "Similar artists to " ++ show artNm ++ ":\n"
+      T.putStrLn $ T.unlines $ take 10 ns
 
