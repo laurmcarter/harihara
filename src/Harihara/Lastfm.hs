@@ -8,10 +8,8 @@ module Harihara.Lastfm (
   , module H
   ) where
 
-import Control.Lens
 import Data.Configurator
 import Data.Configurator.Types
-import MonadLib
 import Network.Lastfm
 
 import Data.Text
@@ -23,8 +21,8 @@ import Harihara.Utils
 
 type ConfigFile = Worth FilePath
 
-mkLastfmEnv :: (BaseM m IO) => Config -> m LastfmEnv
-mkLastfmEnv c = inBase $ LastfmEnv <$>
+mkLastfmEnv :: Config -> IO LastfmEnv
+mkLastfmEnv c = LastfmEnv          <$>
   (apiKey <$> require c "api-key") <*>
   (sign <$> Secret <$> require c "secret")
 
@@ -35,6 +33,6 @@ getSimilarArtists :: (MonadLastfm m) => Text -> m (Text,[ArtistResult])
 getSimilarArtists ar = do
   logInfo $ "Lastfm: Getting artists similar to " ++ show ar
   cor <- artist_getCorrection ar
-  let ar' = maybe (capitalize ar) (^. artistName) cor
+  let ar' = maybe (capitalize ar) artistName cor
   (ar',) <$> artist_getSimilar ar'
 

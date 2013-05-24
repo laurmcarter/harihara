@@ -6,7 +6,6 @@ module Harihara.Lastfm.Parsers.Types where
 import Data.Aeson.Types
 
 import Control.Applicative
-import Control.Lens
 import Control.Monad
 import Data.Text
 
@@ -17,16 +16,16 @@ type URL = Text
 --------------------------------------------------------------------------------
 
 data AlbumResult = AlbumResult
-  { _albumName        :: !Text
-  , _albumArtist      :: !Text
-  , _albumId          :: !Integer
-  , _albumURL         :: !URL
-  , _albumImages      :: ![Image]
-  , _albumMBId        :: !(Maybe Text)          -- +-in 'getInfo', not in 'search'
-  , _albumReleaseDate :: !(Maybe Text)          -- |
-  , _albumTracks      :: !(Maybe [TrackResult]) -- |
-  , _albumTags        :: !(Maybe [TagResult])   -- +
-  , _positionInAlbum  :: !(Maybe Integer)       --  NB: in 'track.getInfo'
+  { albumName        :: !Text
+  , albumArtist      :: !Text
+  , albumId          :: !Integer
+  , albumURL         :: !URL
+  , albumImages      :: ![Image]
+  , albumMBId        :: !(Maybe Text)          -- +-in 'getInfo', not in 'search'
+  , albumReleaseDate :: !(Maybe Text)          -- |
+  , albumTracks      :: !(Maybe [TrackResult]) -- |
+  , albumTags        :: !(Maybe [TagResult])   -- +
+  , positionInAlbum  :: !(Maybe Integer)       --  NB: in 'track.getInfo'
   } deriving (Show)
 
 instance FromJSON AlbumResult where
@@ -49,12 +48,12 @@ instance FromJSON AlbumResult where
 --------------------------------------------------------------------------------
 
 data ArtistResult = ArtistResult
-  { _artistName       :: !Text
-  , _artistURL        :: !URL
-  , _artistMBId       :: !(Maybe Text)
-  , _artistImages     :: !(Maybe [Image])
-  , _artistTags       :: !(Maybe [TagResult])    -- +-in 'getInfo', not in 'search'
-  , _artistSimilar    :: !(Maybe [ArtistResult]) -- +
+  { artistName       :: !Text
+  , artistURL        :: !URL
+  , artistMBId       :: !(Maybe Text)
+  , artistImages     :: !(Maybe [Image])
+  , artistTags       :: !(Maybe [TagResult])    -- +-in 'getInfo', not in 'search'
+  , artistSimilar    :: !(Maybe [ArtistResult]) -- +
   } deriving (Show)
 
 instance FromJSON ArtistResult where
@@ -73,8 +72,8 @@ instance FromJSON ArtistResult where
 --------------------------------------------------------------------------------
 
 data TagResult = TagResult
-  { _tagName :: !Text
-  , _tagURL  :: !URL
+  { tagName :: !Text
+  , tagURL  :: !URL
   } deriving (Show)
 
 instance FromJSON TagResult where
@@ -87,15 +86,15 @@ instance FromJSON TagResult where
 --------------------------------------------------------------------------------
 
 data TrackResult = TrackResult
-  { _trackName     :: !Text
-  , _trackArtist   :: !(Either Text ArtistResult) -- only name in 'search',
-                                                  --  name and mbid in 'getInfo'
-  , _trackURL      :: !URL
-  , _trackImages   :: !(Maybe [Image])     -- NB: in 'search', not in 'getInfo'
-  , _trackMBId     :: !(Maybe Text)        -- +-in 'getInfo', not in 'search'
-  , _trackDuration :: !(Maybe Integer)     -- |
-  , _trackAlbum    :: !(Maybe AlbumResult) -- |
-  , _trackRank     :: !(Maybe Integer)     -- +
+  { trackName     :: !Text
+  , trackArtist   :: !(Either Text ArtistResult) -- only name in 'search',
+                                                 --  name and mbid in 'getInfo'
+  , trackURL      :: !URL
+  , trackImages   :: !(Maybe [Image])     -- NB: in 'search', not in 'getInfo'
+  , trackMBId     :: !(Maybe Text)        -- +-in 'getInfo', not in 'search'
+  , trackDuration :: !(Maybe Integer)     -- |
+  , trackAlbum    :: !(Maybe AlbumResult) -- |
+  , trackRank     :: !(Maybe Integer)     -- +
   } deriving (Show)
 
 instance FromJSON TrackResult where
@@ -136,8 +135,8 @@ instance FromJSON ImageSize where
 --------------------------------------------------------------------------------
 
 data Image = Image
-  { _imageSize :: !ImageSize
-  , _imageURL  :: !URL
+  { imageSize :: !ImageSize
+  , imageURL  :: !URL
   } deriving (Show)
 
 instance FromJSON Image where
@@ -146,10 +145,4 @@ instance FromJSON Image where
     r .: "size"  <*>
     r .: "#text"
   parseJSON _ = mzero
-
-makeLenses ''AlbumResult
-makeLenses ''ArtistResult
-makeLenses ''TagResult
-makeLenses ''TrackResult
-makeLenses ''Image
 

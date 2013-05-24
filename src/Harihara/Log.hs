@@ -16,7 +16,7 @@ import Control.Exception
 import Control.Monad (when)
 import Data.Typeable
 
--- Exceptions ------------------------------------------------------------------
+-- Exceptions {{{
 
 data LastfmException
   = NoResponse
@@ -31,7 +31,9 @@ data TagException
 
 instance Exception TagException
 
--- Logging ---------------------------------------------------------------------
+-- }}}
+
+-- Logging {{{
 
 data LogLevel
   = LogSilent
@@ -61,4 +63,6 @@ filterLog :: (MonadLog m) => LogLevel -> String -> m ()
 filterLog lvl msg = do
   shouldLog <- (lvl <=) <$> getLogLevel
   when shouldLog $ writeLog lvl msg
+
+-- }}}
 

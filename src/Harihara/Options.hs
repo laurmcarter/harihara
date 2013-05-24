@@ -4,11 +4,7 @@ module Harihara.Options
   ( parseOptions
   , parseOptionsWith
   , HariharaOptions (..)
-  , optsLogLevel
-  , optsFiles
   ) where
-
-import Control.Lens
 
 import Data.List (isPrefixOf)
 import qualified Data.Set as S
@@ -16,22 +12,33 @@ import qualified Data.Set as S
 import Harihara.Log
 import Harihara.Utils
 
--- HariharaOptions -------------------------------------------------------------
+-- HariharaOptions {{{
 
 data HariharaOptions = HariharaOptions
-  { _optsLogLevel :: LogLevel
-  , _optsFiles    :: S.Set FilePath
+  { optsLogLevel :: LogLevel
+  , optsFiles    :: S.Set FilePath
   } deriving (Show)
-
-makeLenses ''HariharaOptions
 
 defaultOptions :: HariharaOptions
 defaultOptions = HariharaOptions
-  { _optsLogLevel = LogInfo
-  , _optsFiles    = S.empty
+  { optsLogLevel = LogInfo
+  , optsFiles    = S.empty
   }
 
--- Handlers --------------------------------------------------------------------
+setOptsLogLevel :: LogLevel -> HariharaOptions -> HariharaOptions
+setOptsLogLevel = onOptsLogLevel . const
+
+onOptsLogLevel :: (LogLevel -> LogLevel)
+  -> HariharaOptions -> HariharaOptions
+onOptsLogLevel f o = o { optsLogLevel = f $ optsLogLevel o }
+
+onOptsFiles :: (S.Set FilePath -> S.Set FilePath)
+  -> HariharaOptions -> HariharaOptions
+onOptsFiles f o = o { optsFiles = f $ optsFiles o }
+
+-- }}}
+
+-- Handlers {{{
 
 defaultFlagHandlers :: [FlagHandler]
 defaultFlagHandlers =
@@ -40,8 +47,7 @@ defaultFlagHandlers =
 
 handleLogLevel :: String -> OptionsBuilder
 handleLogLevel ll =
-  withMaybe parsedLevel id
-    (optsLogLevel .~)
+  withMaybe parsedLevel id setOptsLogLevel
   where
   parsedLevel = case ll of
     "silent" -> Just LogSilent
@@ -57,9 +63,11 @@ handleLogLevel ll =
     _       -> Nothing
 
 handleFile  :: String -> HariharaOptions -> HariharaOptions
-handleFile f = optsFiles %~ S.insert f
+handleFile f = onOptsFiles $ S.insert f
 
--- Parsing Options -------------------------------------------------------------
+-- }}}
+
+-- Parsing Options {{{
 
 parseOptions :: [String] -> HariharaOptions
 parseOptions = parseOptionsWith defaultFlagHandlers
@@ -71,7 +79,9 @@ parseOptionsWith hs args = case args of
   f:rest                  -> handleFile f          $ parseOptionsWith hs rest
   _                       -> defaultOptions
 
--- Parsing Options -------------------------------------------------------------
+-- }}}
+
+-- Parsing Options {{{
 
 type OptionsBuilder = HariharaOptions -> HariharaOptions
 
@@ -106,4 +116,6 @@ splitPrefix prf s = case (prf,s) of
     | otherwise -> s
   ([],rest)     -> rest
   _             -> ""
+
+-- }}}
 

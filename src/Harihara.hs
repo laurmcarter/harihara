@@ -4,10 +4,8 @@ module Harihara
   , module H
   ) where
 
-import Control.Lens
 import Data.Configurator (load)
 import Data.Set (toList)
-import MonadLib
 
 import Control.Applicative
 import System.Environment
@@ -29,15 +27,10 @@ logging as soon as the command line arguments are parsed.
 --   expecting a list of files.
 harihara :: [ConfigFile] -> ([FilePath] -> Harihara a) -> IO a
 harihara cfs fm = do
-  -- parse options to get LogLevel
-  opts <- parseOptions <$> getArgs
-  evalM opts $ do
-    logDebug $ "Boot Options: " ++ show opts
-    logInfo "Boot: Loading configuration files"
-    mainCfg <- inBase $ load cfs
-    logInfo "Boot: Building Lastfm configuration"
-    lfmEnv <- inBase $ mkLastfmEnv mainCfg
-    let m = fm $ toList $ opts ^. optsFiles
-    logInfo "Running Harihara..."
-    evalM lfmEnv m
+  hhOpts <- parseOptions <$> getArgs
+  mainCfg <- load cfs
+  lfmEnv <- mkLastfmEnv mainCfg
+  let m = fm $ toList $ optsFiles $ hhOpts
+  let hhEnv = buildEnv hhOpts lfmEnv
+  runHarihara hhEnv m
 

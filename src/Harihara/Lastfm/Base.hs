@@ -20,6 +20,8 @@ import qualified Data.ByteString.Lazy.Char8 as C8
 import Harihara.Lastfm.Parsers
 import Harihara.Log
 
+-- Types {{{
+
 data LastfmEnv = LastfmEnv
   { getApiKey   :: LfmRequest APIKey
   , signRequest :: LfmRequestAuth Ready -> LfmRequest Ready
@@ -34,7 +36,9 @@ class (Functor m, Monad m, BaseM m IO, MonadLog m)
 
 type KeyedRequest = LfmRequest (APIKey -> Ready)
 
---------------------------------------------------------------------------------
+-- }}}
+
+-- Request Abstractions {{{
 
 sendRequest :: (Show a, MonadLastfm m) => (Value -> Parser a) -> KeyedRequest -> m a
 sendRequest prs req = do
@@ -58,15 +62,33 @@ sendRequest prs req = do
           logDebug $ "Lastfm: Parse Successful:\n" ++ show res
           return res
 
---------------------------------------------------------------------------------
-
 -- | generic function for Last.fm's *.search call.
 search :: (MonadLastfm m, Search a) => KeyedRequest -> m [a]
 search req = do
   logInfo "Request type 'search'"
   sendRequest parse_search req
 
---------------------
+-- | generic function for Last.fm's *.getInfo call.
+getInfo :: (MonadLastfm m, GetInfo a) => KeyedRequest -> m a
+getInfo req = do
+  logInfo "Request type 'getInfo'"
+  sendRequest parse_getInfo req
+
+-- | generic function for Last.fm's *.getCorrection call.
+getCorrection :: (MonadLastfm m, GetCorrection a) => KeyedRequest -> m (Maybe a)
+getCorrection req = do
+  logInfo "Request type 'getCorrection'"
+  sendRequest parse_getCorrection req
+
+-- | generic function for Last.fm's *.getSimilar call.
+getSimilar :: (MonadLastfm m, GetSimilar a) => KeyedRequest -> m [a]
+getSimilar req = do
+  logInfo "Request type 'getSimilar'"
+  sendRequest parse_getSimilar req
+
+-- }}}
+
+-- Search Requests {{{
 
 album_search    :: (MonadLastfm m) => Text -> m [AlbumResult]
 album_search  al = do
@@ -88,15 +110,9 @@ track_search  tr = do
   logInfo $ "Track " ++ show tr
   search $ Track.search  <*> track tr
 
---------------------------------------------------------------------------------
+-- }}}
 
--- | generic function for Last.fm's *.getInfo call.
-getInfo :: (MonadLastfm m, GetInfo a) => KeyedRequest -> m a
-getInfo req = do
-  logInfo "Request type 'getInfo'"
-  sendRequest parse_getInfo req
-
---------------------
+-- GetInfo Requests {{{
 
 artist_getInfo     :: (MonadLastfm m) => Text -> m ArtistResult
 artist_getInfo   ar = do
@@ -118,7 +134,6 @@ track_getInfo ar tr = do
   logInfo $ "Artist " ++ show ar ++ ", Track " ++ show tr
   getInfo $ Track.getInfo  <*> artist ar <*> track tr
 
-----------------------------------------
 
 album_getInfo_mbid    :: (MonadLastfm m) => Text -> m AlbumResult
 album_getInfo_mbid  mb = do
@@ -137,13 +152,9 @@ track_getInfo_mbid  mb = do
 
 -- tag_getInfo_mbid does not exist, as per liblastfm
 
---------------------------------------------------------------------------------
+-- }}}
 
--- | generic function for Last.fm's *.getCorrection call.
-getCorrection :: (MonadLastfm m, GetCorrection a) => KeyedRequest -> m (Maybe a)
-getCorrection req = do
-  logInfo "Request type 'getCorrection'"
-  sendRequest parse_getCorrection req
+-- GetCorrection Requests {{{
 
 artist_getCorrection :: (MonadLastfm m) => Text -> m (Maybe ArtistResult)
 artist_getCorrection ar = do
@@ -152,13 +163,9 @@ artist_getCorrection ar = do
 
 -- track_getCorrection does not exist, b/c last.FM responses seem to be useless
 
---------------------------------------------------------------------------------
+-- }}}
 
--- | generic function for Last.fm's *.getSimilar call.
-getSimilar :: (MonadLastfm m, GetSimilar a) => KeyedRequest -> m [a]
-getSimilar req = do
-  logInfo "Request type 'getSimilar'"
-  sendRequest parse_getSimilar req
+-- GetSimilar Requests {{{
 
 artist_getSimilar   :: (MonadLastfm m) => Text -> m [ArtistResult]
 artist_getSimilar ar = do
@@ -169,4 +176,6 @@ tag_getSimilar      :: (MonadLastfm m) => Text -> m [TagResult]
 tag_getSimilar    tg = do
   logInfo $ "Tag " ++ show tg
   getSimilar $ Tag.getSimilar    <*> tag tg
+
+-- }}}
 

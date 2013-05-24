@@ -5,7 +5,6 @@ import Data.Configurator
 import MonadLib
 
 import Control.Applicative    ( (<$>) )
-import Control.Lens           ( view )
 import Data.Maybe             ( listToMaybe )
 import Data.Text as T         ( unlines )
 import qualified Data.Text.IO as T ( putStrLn )
@@ -23,11 +22,12 @@ configFiles =
 
 main :: IO ()
 main = harihara configFiles $ \fs -> do
-  as <- tagWithFiles fs getSongInfo
-  let mn = songArtist <$> (listToMaybe =<< as)
-  whenJust mn $ \artNm -> do
-    (artNm',sims) <- getSimilarArtists artNm
-    let ns = map (view artistName) sims
+  is <- runTagLib $ forM fs $ openFile >=> getSongInfo
+  inBase $ print is
+  forM_ is $ \inf -> do
+    let nm = songArtist inf
+    (artNm',sims) <- getSimilarArtists nm
+    let ns = map artistName sims
     inBase $ do
       putStrLn $ "Similar artists to " ++ show artNm' ++ ":\n"
       T.putStrLn $ T.unlines $ take 10 ns
