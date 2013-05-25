@@ -16,16 +16,21 @@ import Harihara.Log
 data HariharaOptions = HariharaOptions
   { optsLogLevel :: LogLevel
   , optsFiles    :: S.Set FilePath
+  , optsDBPath   :: FilePath
   } deriving (Show)
 
 defaultOptions :: HariharaOptions
 defaultOptions = HariharaOptions
   { optsLogLevel = LogInfo
   , optsFiles    = S.empty
+  , optsDBPath   = ".harihara.db"
   }
 
 setOptsLogLevel :: LogLevel -> OptionsBuilder
-setOptsLogLevel ll opts = onOptsLogLevel (const ll) opts
+setOptsLogLevel ll = onOptsLogLevel $ const ll
+
+setOptsDBPath :: FilePath -> OptionsBuilder
+setOptsDBPath fp = onOptsDBPath $ const fp
 
 onOptsLogLevel :: (LogLevel -> LogLevel)
   -> OptionsBuilder
@@ -34,6 +39,9 @@ onOptsLogLevel f o = return $ o { optsLogLevel = f $ optsLogLevel o }
 onOptsFiles :: (S.Set FilePath -> S.Set FilePath)
   -> OptionsBuilder
 onOptsFiles f o = return $ o { optsFiles = f $ optsFiles o }
+
+onOptsDBPath :: (FilePath -> FilePath) -> OptionsBuilder
+onOptsDBPath f o = return $ o { optsDBPath = f $ optsDBPath o }
 
 -- }}}
 
@@ -49,7 +57,8 @@ type FlagHandler = (LongFlag,ShortFlag,Usage,Arg -> OptionsBuilder)
 
 defaultFlagHandlers :: [FlagHandler]
 defaultFlagHandlers =
-  [ ( "log" , "l" , "[[0-4]|silent|error|warn|info|debug]" , handleLogLevel )
+  [ ( "log"      , "l"  , "[[0-4]|silent|error|warn|info|debug]" , handleLogLevel )
+  , ( "database" , "db" , "<path/to/db>"                         , handleDBPath   )
   ]
 
 handleLogLevel :: Arg -> OptionsBuilder
@@ -70,8 +79,11 @@ handleLogLevel ll opts = do
     "4"     -> Just LogDebug
     _       -> Nothing
 
+handleDBPath :: Arg -> OptionsBuilder
+handleDBPath fp = setOptsDBPath fp
+
 handleFile  :: Arg -> OptionsBuilder
-handleFile f opts = onOptsFiles (S.insert f) opts
+handleFile f = onOptsFiles $ S.insert f
 
 -- }}}
 

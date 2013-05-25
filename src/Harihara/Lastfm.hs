@@ -8,8 +8,6 @@ module Harihara.Lastfm (
   , module H
   ) where
 
-import Data.Configurator
-import Data.Configurator.Types
 import Network.Lastfm
 
 import Data.Text
@@ -20,15 +18,6 @@ import Harihara.Lastfm.Types    as H
 import Harihara.Log
 import Harihara.Monad
 import Harihara.Utils
-
-type ConfigFile = Worth FilePath
-
-mkLastfmEnv :: Config -> IO LastfmEnv
-mkLastfmEnv c = LastfmEnv          <$>
-  (apiKey <$> require c "api-key") <*>
-  (sign <$> Secret <$> require c "secret")
-
---------------------------------------------------------------------------------
 
 -- | Retrieve a list of artists similar to one given.
 lastfm_similarArtists :: Text -> Harihara (Text,[ArtistResult])

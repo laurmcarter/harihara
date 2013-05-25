@@ -9,6 +9,7 @@ import MonadLib
 import Audio.TagLib hiding (taglib, io, openFile)
 import Audio.TagLib.Internal hiding (io)
 
+import Harihara.DB hiding (io)
 import Harihara.Lastfm.Types
 import Harihara.Log
 import Harihara.Options
@@ -52,9 +53,10 @@ renderLevel ll = case ll of
 -- HariharaEnv {{{
 
 data HariharaEnv = HariharaEnv
-  { logLevel  :: LogLevel
-  , lastfmEnv :: LastfmEnv
-  , taglibEnv :: TagLibEnv
+  { logLevel    :: LogLevel
+  , lastfmEnv   :: LastfmEnv
+  , taglibEnv   :: TagLibEnv
+  , databaseEnv :: DBEnv
   }
 
 onLogLevel :: (LogLevel -> LogLevel) -> HariharaEnv -> HariharaEnv
@@ -66,7 +68,10 @@ onLastfmEnv f e = e { lastfmEnv = f $ lastfmEnv e }
 onTagLibEnv :: (TagLibEnv -> TagLibEnv) -> HariharaEnv -> HariharaEnv
 onTagLibEnv f e = e { taglibEnv = f $ taglibEnv e }
 
-buildEnv :: HariharaOptions -> LastfmEnv -> TagLibEnv -> HariharaEnv
+onDBEnv :: (DBEnv -> DBEnv) -> HariharaEnv -> HariharaEnv
+onDBEnv f e = e { databaseEnv = f $ databaseEnv e }
+
+buildEnv :: HariharaOptions -> LastfmEnv -> TagLibEnv -> DBEnv -> HariharaEnv
 buildEnv = HariharaEnv . optsLogLevel
 
 -- }}}
@@ -87,6 +92,9 @@ getTagLibEnv = fromHHEnv taglibEnv
 
 getLastfmEnv :: Harihara LastfmEnv
 getLastfmEnv = fromHHEnv lastfmEnv
+
+getDBEnv :: Harihara DBEnv
+getDBEnv = fromHHEnv databaseEnv
 
 modifyTagLibEnv :: (TagLibEnv -> TagLibEnv) -> Harihara ()
 modifyTagLibEnv = modifyHHEnv . onTagLibEnv
@@ -122,6 +130,16 @@ taglib m = do
   logDebug "Updating TagLibEnv"
   setTagLibEnv env'
   return a
+
+-- }}}
+
+-- DB {{{
+
+db :: DB a -> Harihara a
+db m = do
+  env <- getDBEnv
+  logInfo "DB"
+  io $ runDB env m
 
 -- }}}
 

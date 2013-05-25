@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Harihara
   ( module Harihara
@@ -7,20 +8,22 @@ module Harihara
 
 import Audio.TagLib.Internal hiding (io)
 
-import Data.Configurator (load)
+import Data.Configurator
+import Data.Configurator.Types
+import Network.Lastfm
+
+import Control.Exception
 import Data.Set (toList)
 import Data.Typeable (Typeable())
-
-import Control.Applicative
-import Control.Exception
 import System.Environment
 
+import Harihara.DB      as H hiding (io)
 import Harihara.Lastfm  as H
-import Harihara.Log     as H
-import Harihara.Monad   as H
-import Harihara.Options as H
-import Harihara.Tag     as H
-import Harihara.Utils   as H
+import Harihara.Log     as H            
+import Harihara.Monad   as H            
+import Harihara.Options as H            
+import Harihara.Tag     as H            
+import Harihara.Utils   as H            
 
 data HariharaException
   = Usage String
@@ -42,8 +45,10 @@ harihara cfs fm = do
   hhOpts <- either (throw . Usage) return mOpts
   mainCfg <- load cfs
   lfmEnv <- mkLastfmEnv mainCfg
+  dbEnv <- mkDBEnv mainCfg hhOpts
+  let tlEnv = initialEnv
   let m = fm $ toList $ optsFiles $ hhOpts
-  let hhEnv = buildEnv hhOpts lfmEnv initialEnv
+  let hhEnv = buildEnv hhOpts lfmEnv tlEnv dbEnv
   runHarihara hhEnv $ bracketTagLib m
 
 -- | Clean up all remaining TagLib resources, both files and strings.
@@ -57,4 +62,21 @@ bracketTagLib m = do
   io (mapM_ cleanupFile fs >> freeTagLibStrings)
   logInfo "Done!"
   return a
+
+-- Configuration Aggregation {{{
+
+type ConfigFile = Worth FilePath
+
+mkLastfmEnv :: Config -> IO LastfmEnv
+mkLastfmEnv c = LastfmEnv          <$>
+  (apiKey <$> require c "api-key") <*>
+  (sign <$> Secret <$> require c "secret")
+
+mkDBEnv :: Config -> HariharaOptions -> IO DBEnv
+mkDBEnv cfg opts = do
+  path <- lookupDefault (optsDBPath opts) cfg "db-path"
+  conn <- openDB path
+  return (DBEnv path conn)
+
+-- }}}
 
