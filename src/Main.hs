@@ -1,34 +1,32 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Audio.TagLib
+import Audio.TagLib hiding (io, taglib)
 import Data.Configurator
 import MonadLib
 
-import Control.Applicative    ( (<$>) )
-import Data.Maybe             ( listToMaybe )
-import Data.Text as T         ( unlines )
-import qualified Data.Text.IO as T ( putStrLn )
-
 import Harihara
 
--- | .lastfm_auth must include keys,
---      api-key :: String
---      secret  :: String
+-- | The sum configuration must contain the following fields:
+--      api-key    :: String
+--      secret     :: String
+--      music-dirs :: [String]
+--   These may be placed in either .harihara or .lastfm_auth,
+--   at the user's discretion.
 configFiles :: [ConfigFile]
 configFiles =
-  [ Optional "$(HOME)/.lastfm_auth"
-  , Required "$(HOME)/.harihara"
+  [ Required "$(HOME)/.harihara"
+  , Optional "$(HOME)/.lastfm_auth"
   ]
 
 main :: IO ()
 main = harihara configFiles $ \fs -> do
-  is <- runTagLib $ forM fs $ openFile >=> getSongInfo
-  inBase $ print is
-  forM_ is $ \inf -> do
-    let nm = songArtist inf
-    (artNm',sims) <- getSimilarArtists nm
-    let ns = map artistName sims
-    inBase $ do
-      putStrLn $ "Similar artists to " ++ show artNm' ++ ":\n"
-      T.putStrLn $ T.unlines $ take 10 ns
+  fids <- taglib $ mapM openFile fs 
+  forM_ fids $ \fid -> do
+    art <- taglib $ getArtist fid
+    io $ putStrLn $ "Artist is: " ++ show art
+    (art',sims) <- lastfm_similarArtists art
+    when (art /= art') $ taglib $ setArtist fid art'
+    io $ do
+      putStrLn "10 Similar Artists:"
+      mapM_ (print . artistName) $ take 10 sims
 

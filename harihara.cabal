@@ -43,10 +43,11 @@ library
                        
   exposed-modules:     Harihara
                        Harihara.Lastfm
-                       Harihara.Lastfm.Base
                        Harihara.Lastfm.Parsers
                        Harihara.Lastfm.Parsers.Extras
                        Harihara.Lastfm.Parsers.Types
+                       Harihara.Lastfm.Requests
+                       Harihara.Lastfm.Types
                        Harihara.Log
                        Harihara.Monad
                        Harihara.Options

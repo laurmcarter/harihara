@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
+--{-# LANGUAGE FlexibleContexts #-}
 
-module Harihara.Lastfm.Base where
+module Harihara.Lastfm.Requests where
 
 import Control.Exception
 import MonadLib
@@ -17,30 +17,14 @@ import qualified Network.Lastfm.Track as Track
 import Data.Text
 import qualified Data.ByteString.Lazy.Char8 as C8
 
+import Harihara.Lastfm.Types
 import Harihara.Lastfm.Parsers
 import Harihara.Log
-
--- Types {{{
-
-data LastfmEnv = LastfmEnv
-  { getApiKey   :: LfmRequest APIKey
-  , signRequest :: LfmRequestAuth Ready -> LfmRequest Ready
-  }
-
-type LfmRequest = Request JSON Send
-type LfmRequestAuth = Request JSON Sign
-
-class (Functor m, Monad m, BaseM m IO, MonadLog m) 
-  => MonadLastfm m where
-  getLastfmEnv :: m LastfmEnv
-
-type KeyedRequest = LfmRequest (APIKey -> Ready)
-
--- }}}
+import Harihara.Monad
 
 -- Request Abstractions {{{
 
-sendRequest :: (Show a, MonadLastfm m) => (Value -> Parser a) -> KeyedRequest -> m a
+sendRequest :: (Show a) => (Value -> Parser a) -> KeyedRequest -> Harihara a
 sendRequest prs req = do
   key <- getApiKey <$> getLastfmEnv
   logInfo "Lastfm: Sending request"
@@ -63,25 +47,25 @@ sendRequest prs req = do
           return res
 
 -- | generic function for Last.fm's *.search call.
-search :: (MonadLastfm m, Search a) => KeyedRequest -> m [a]
+search :: (Search a) => KeyedRequest -> Harihara [a]
 search req = do
   logInfo "Request type 'search'"
   sendRequest parse_search req
 
 -- | generic function for Last.fm's *.getInfo call.
-getInfo :: (MonadLastfm m, GetInfo a) => KeyedRequest -> m a
+getInfo :: (GetInfo a) => KeyedRequest -> Harihara a
 getInfo req = do
   logInfo "Request type 'getInfo'"
   sendRequest parse_getInfo req
 
 -- | generic function for Last.fm's *.getCorrection call.
-getCorrection :: (MonadLastfm m, GetCorrection a) => KeyedRequest -> m (Maybe a)
+getCorrection :: (GetCorrection a) => KeyedRequest -> Harihara (Maybe a)
 getCorrection req = do
   logInfo "Request type 'getCorrection'"
   sendRequest parse_getCorrection req
 
 -- | generic function for Last.fm's *.getSimilar call.
-getSimilar :: (MonadLastfm m, GetSimilar a) => KeyedRequest -> m [a]
+getSimilar :: (GetSimilar a) => KeyedRequest -> Harihara [a]
 getSimilar req = do
   logInfo "Request type 'getSimilar'"
   sendRequest parse_getSimilar req
@@ -90,23 +74,23 @@ getSimilar req = do
 
 -- Search Requests {{{
 
-album_search    :: (MonadLastfm m) => Text -> m [AlbumResult]
-album_search  al = do
+lastfm_search_album    :: Text -> Harihara [AlbumResult]
+lastfm_search_album  al = do
   logInfo $ "Album " ++ show al
   search $ Album.search  <*> album al
 
-artist_search   :: (MonadLastfm m) => Text -> m [ArtistResult]
-artist_search ar = do
+lastfm_search_artist   :: Text -> Harihara [ArtistResult]
+lastfm_search_artist ar = do
   logInfo $ "Artist " ++ show ar
   search $ Artist.search <*> artist ar
 
-tag_search      :: (MonadLastfm m) => Text -> m [TagResult]
-tag_search    tg = do
+lastfm_search_tag      :: Text -> Harihara [TagResult]
+lastfm_search_tag    tg = do
   logInfo $ "Tag " ++ show tg
   search $ Tag.search    <*> tag tg
 
-track_search    :: (MonadLastfm m) => Text -> m [TrackResult]
-track_search  tr = do
+lastfm_search_track    :: Text -> Harihara [TrackResult]
+lastfm_search_track  tr = do
   logInfo $ "Track " ++ show tr
   search $ Track.search  <*> track tr
 
@@ -114,39 +98,39 @@ track_search  tr = do
 
 -- GetInfo Requests {{{
 
-artist_getInfo     :: (MonadLastfm m) => Text -> m ArtistResult
-artist_getInfo   ar = do
+lastfm_getInfo_artist     :: Text -> Harihara ArtistResult
+lastfm_getInfo_artist   ar = do
   logInfo $ "Artist " ++ show ar
   getInfo $ Artist.getInfo <*> artist ar
 
-tag_getInfo        :: (MonadLastfm m) => Text -> m TagResult
-tag_getInfo      tg = do
+lastfm_getInfo_tag        :: Text -> Harihara TagResult
+lastfm_getInfo_tag      tg = do
   logInfo $ "Tag " ++ show tg
   getInfo $ Tag.getInfo    <*> tag tg
 
-album_getInfo      :: (MonadLastfm m) => Text -> Text -> m AlbumResult
-album_getInfo ar al = do
+lastfm_getInfo_artist_album :: Text -> Text -> Harihara AlbumResult
+lastfm_getInfo_artist_album ar al = do
   logInfo $ "Artist " ++ show ar ++ ", Album " ++ show al
   getInfo $ Album.getInfo  <*> artist ar <*> album al
 
-track_getInfo      :: (MonadLastfm m) => Text -> Text -> m TrackResult
-track_getInfo ar tr = do
+lastfm_getInfo_artist_track :: Text -> Text -> Harihara TrackResult
+lastfm_getInfo_artist_track ar tr = do
   logInfo $ "Artist " ++ show ar ++ ", Track " ++ show tr
   getInfo $ Track.getInfo  <*> artist ar <*> track tr
 
 
-album_getInfo_mbid    :: (MonadLastfm m) => Text -> m AlbumResult
-album_getInfo_mbid  mb = do
+lastfm_getInfo_album_mbid    :: Text -> Harihara AlbumResult
+lastfm_getInfo_album_mbid  mb = do
   logInfo $ "MBID " ++ show mb
   getInfo $ Album.getInfo  <*> mbid mb
 
-artist_getInfo_mbid   :: (MonadLastfm m) => Text -> m ArtistResult
-artist_getInfo_mbid mb = do
+lastfm_getInfo_artist_mbid   :: Text -> Harihara ArtistResult
+lastfm_getInfo_artist_mbid mb = do
   logInfo $ "MBID " ++ show mb
   getInfo $ Artist.getInfo <*> mbid mb
 
-track_getInfo_mbid    :: (MonadLastfm m) => Text -> m TrackResult
-track_getInfo_mbid  mb = do
+lastfm_getInfo_track_mbid    :: Text -> Harihara TrackResult
+lastfm_getInfo_track_mbid  mb = do
   logInfo $ "MBID " ++ show mb
   getInfo $ Track.getInfo  <*> mbid mb
 
@@ -156,8 +140,8 @@ track_getInfo_mbid  mb = do
 
 -- GetCorrection Requests {{{
 
-artist_getCorrection :: (MonadLastfm m) => Text -> m (Maybe ArtistResult)
-artist_getCorrection ar = do
+lastfm_getCorrection_artist :: Text -> Harihara (Maybe ArtistResult)
+lastfm_getCorrection_artist ar = do
   logInfo $ "Artist " ++ show ar
   getCorrection $ Artist.getCorrection <*> artist ar
 
@@ -167,13 +151,13 @@ artist_getCorrection ar = do
 
 -- GetSimilar Requests {{{
 
-artist_getSimilar   :: (MonadLastfm m) => Text -> m [ArtistResult]
-artist_getSimilar ar = do
+lastfm_getSimilar_artist   :: Text -> Harihara [ArtistResult]
+lastfm_getSimilar_artist ar = do
   logInfo $ "Artist " ++ show ar
   getSimilar $ Artist.getSimilar <*> artist ar
 
-tag_getSimilar      :: (MonadLastfm m) => Text -> m [TagResult]
-tag_getSimilar    tg = do
+lastfm_getSimilar_tag      :: Text -> Harihara [TagResult]
+lastfm_getSimilar_tag    tg = do
   logInfo $ "Tag " ++ show tg
   getSimilar $ Tag.getSimilar    <*> tag tg
 

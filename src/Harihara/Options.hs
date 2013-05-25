@@ -10,7 +10,6 @@ import Data.List (isPrefixOf)
 import qualified Data.Set as S
 
 import Harihara.Log
-import Harihara.Utils
 
 -- HariharaOptions {{{
 
@@ -25,29 +24,38 @@ defaultOptions = HariharaOptions
   , optsFiles    = S.empty
   }
 
-setOptsLogLevel :: LogLevel -> HariharaOptions -> HariharaOptions
-setOptsLogLevel = onOptsLogLevel . const
+setOptsLogLevel :: LogLevel -> OptionsBuilder
+setOptsLogLevel ll opts = onOptsLogLevel (const ll) opts
 
 onOptsLogLevel :: (LogLevel -> LogLevel)
-  -> HariharaOptions -> HariharaOptions
-onOptsLogLevel f o = o { optsLogLevel = f $ optsLogLevel o }
+  -> OptionsBuilder
+onOptsLogLevel f o = return $ o { optsLogLevel = f $ optsLogLevel o }
 
 onOptsFiles :: (S.Set FilePath -> S.Set FilePath)
-  -> HariharaOptions -> HariharaOptions
-onOptsFiles f o = o { optsFiles = f $ optsFiles o }
+  -> OptionsBuilder
+onOptsFiles f o = return $ o { optsFiles = f $ optsFiles o }
 
 -- }}}
 
 -- Handlers {{{
 
+type OptionsBuilder = HariharaOptions -> Maybe HariharaOptions
+type LongFlag = String
+type ShortFlag = String
+type Arg  = String
+type Usage = String
+
+type FlagHandler = (LongFlag,ShortFlag,Usage,Arg -> OptionsBuilder)
+
 defaultFlagHandlers :: [FlagHandler]
 defaultFlagHandlers =
-  [ ( "log" , "l" , handleLogLevel )
+  [ ( "log" , "l" , "[[0-4]|silent|error|warn|info|debug]" , handleLogLevel )
   ]
 
-handleLogLevel :: String -> OptionsBuilder
-handleLogLevel ll =
-  withMaybe parsedLevel id setOptsLogLevel
+handleLogLevel :: Arg -> OptionsBuilder
+handleLogLevel ll opts = do
+  lvl <- parsedLevel
+  setOptsLogLevel lvl opts
   where
   parsedLevel = case ll of
     "silent" -> Just LogSilent
@@ -62,52 +70,51 @@ handleLogLevel ll =
     "4"     -> Just LogDebug
     _       -> Nothing
 
-handleFile  :: String -> HariharaOptions -> HariharaOptions
-handleFile f = onOptsFiles $ S.insert f
+handleFile  :: Arg -> OptionsBuilder
+handleFile f opts = onOptsFiles (S.insert f) opts
 
 -- }}}
 
 -- Parsing Options {{{
 
-parseOptions :: [String] -> HariharaOptions
+parseOptions :: [String] -> Either Usage HariharaOptions
 parseOptions = parseOptionsWith defaultFlagHandlers
 
-parseOptionsWith :: [FlagHandler] -> [String] -> HariharaOptions
-parseOptionsWith hs args = case args of
-  ('-':'-':flag):arg:rest -> longFlag  hs flag arg $ parseOptionsWith hs rest
-  ('-':flag):rest         -> shortFlag hs flag     $ parseOptionsWith hs rest
-  f:rest                  -> handleFile f          $ parseOptionsWith hs rest
-  _                       -> defaultOptions
-
--- }}}
-
--- Parsing Options {{{
-
-type OptionsBuilder = HariharaOptions -> HariharaOptions
-
-type LongFlag = String
-type ShortFlag = String
-type Arg  = String
-
-type FlagHandler = (LongFlag,ShortFlag,Arg -> OptionsBuilder)
+parseOptionsWith :: [FlagHandler] -> [String] -> Either Usage HariharaOptions
+parseOptionsWith hs args = case loop args of
+  Just opts -> Right opts
+  Nothing   -> Left $ mkUsage hs
+  where
+  loop as = case as of
+    ('-':'-':flag):arg:rest -> longFlag  hs flag arg =<< loop rest
+    ('-':flag):rest         -> shortFlag hs flag     =<< loop rest
+    f:rest                  -> handleFile f          =<< loop rest
+    []                      -> return defaultOptions
 
 shortFlag :: [FlagHandler] -> String -> OptionsBuilder
 shortFlag hs fa = loop hs
   where
   loop l = case l of
-    (_,sf,h):l'
+    (_,sf,_,h):l'
       | sf `isPrefixOf` fa -> h $ splitPrefix sf fa
       | otherwise          -> loop l'
-    []                     -> id
+    []                     -> return
 
 longFlag :: [FlagHandler] -> LongFlag -> Arg -> OptionsBuilder
 longFlag hs f a = loop hs
   where
   loop l = case l of
-    (lf,_,h):l'
+    (lf,_,_,h):l'
       | f == lf   -> h a
       | otherwise -> loop l'
-    []            -> id
+    []            -> return
+
+mkUsage :: [FlagHandler] -> Usage
+mkUsage = unwords . (map $ \(lf,sf,u,_) ->
+  "[" ++ long lf ++ "|" ++ short sf ++ "]"++u)
+  where
+  long lf = "--" ++ lf ++ " "
+  short sf = "-" ++ sf
 
 splitPrefix :: String -> String -> String
 splitPrefix prf s = case (prf,s) of
