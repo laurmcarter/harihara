@@ -1,25 +1,25 @@
 
-* Maintenance
-** Logging
-** Documentation
-
-* Lastfm
-
-* Tag
-** Switch Maybe to Exception
-** Metadata matching heuristics
-** AcoustId fingerprinting
-** File location conventions
-
 * DB
 ** Backend
- - Database.SQL
- - HDBC
- - Database.Persist
+ - Database.SQLite
 ** Directory watcher
  - System.INotify
+   platform specific
+ - hfsnotify
+   removeWatch missing
+
+* Maintenance
+** Documentation
+** Logging
+
+* Tag
+** File location conventions
+** Metadata matching heuristics
+** AcoustId fingerprinting
 
 * Metadata library extraction
+
+* Lastfm
 
 * UI
 ** Searching
