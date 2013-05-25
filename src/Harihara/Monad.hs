@@ -6,8 +6,10 @@ module Harihara.Monad where
 
 import MonadLib
 
-import Audio.TagLib hiding (taglib, io, openFile)
-import Audio.TagLib.Internal hiding (io)
+import qualified Audio.TagLib as TL
+import Audio.TagLib.Internal (FileId (), TagLibEnv (..))
+
+import Control.Applicative
 
 import Harihara.DB hiding (io)
 import Harihara.Lastfm.Types
@@ -53,10 +55,10 @@ renderLevel ll = case ll of
 -- HariharaEnv {{{
 
 data HariharaEnv = HariharaEnv
-  { logLevel    :: LogLevel
-  , lastfmEnv   :: LastfmEnv
-  , taglibEnv   :: TagLibEnv
-  , databaseEnv :: DBEnv
+  { logLevel     :: LogLevel
+  , lastfmEnv    :: LastfmEnv
+  , taglibEnv    :: TagLibEnv
+  , databaseOpts :: DBOpts
   }
 
 onLogLevel :: (LogLevel -> LogLevel) -> HariharaEnv -> HariharaEnv
@@ -68,10 +70,10 @@ onLastfmEnv f e = e { lastfmEnv = f $ lastfmEnv e }
 onTagLibEnv :: (TagLibEnv -> TagLibEnv) -> HariharaEnv -> HariharaEnv
 onTagLibEnv f e = e { taglibEnv = f $ taglibEnv e }
 
-onDBEnv :: (DBEnv -> DBEnv) -> HariharaEnv -> HariharaEnv
-onDBEnv f e = e { databaseEnv = f $ databaseEnv e }
+onDatabaseOpts :: (DBOpts -> DBOpts) -> HariharaEnv -> HariharaEnv
+onDatabaseOpts f e = e { databaseOpts = f $ databaseOpts e }
 
-buildEnv :: HariharaOptions -> LastfmEnv -> TagLibEnv -> DBEnv -> HariharaEnv
+buildEnv :: HariharaOptions -> LastfmEnv -> TagLibEnv -> DBOpts -> HariharaEnv
 buildEnv = HariharaEnv . optsLogLevel
 
 -- }}}
@@ -93,8 +95,8 @@ getTagLibEnv = fromHHEnv taglibEnv
 getLastfmEnv :: Harihara LastfmEnv
 getLastfmEnv = fromHHEnv lastfmEnv
 
-getDBEnv :: Harihara DBEnv
-getDBEnv = fromHHEnv databaseEnv
+getDatabaseOpts :: Harihara DBOpts
+getDatabaseOpts = fromHHEnv databaseOpts
 
 modifyTagLibEnv :: (TagLibEnv -> TagLibEnv) -> Harihara ()
 modifyTagLibEnv = modifyHHEnv . onTagLibEnv
@@ -122,6 +124,12 @@ evalStateT s m = do
 
 -- Tag {{{
 
+taglib :: FilePath -> (FileId -> TL.TagLib a) -> Harihara a
+taglib fp f = do
+  logInfo "TagLib"
+  io $ TL.taglib (f =<< TL.openFile fp)
+
+{-
 taglib :: TagLib a -> Harihara a
 taglib m = do
   env      <- getTagLibEnv
@@ -130,6 +138,7 @@ taglib m = do
   logDebug "Updating TagLibEnv"
   setTagLibEnv env'
   return a
+-}
 
 -- }}}
 
@@ -137,9 +146,9 @@ taglib m = do
 
 db :: DB a -> Harihara a
 db m = do
-  env <- getDBEnv
+  fp <- dbPath <$> getDatabaseOpts
   logInfo "DB"
-  io $ runDB env m
+  io $ withDB fp m
 
 -- }}}
 

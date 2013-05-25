@@ -45,10 +45,10 @@ harihara cfs fm = do
   hhOpts <- either (throw . Usage) return mOpts
   mainCfg <- load cfs
   lfmEnv <- mkLastfmEnv mainCfg
-  dbEnv <- mkDBEnv mainCfg hhOpts
+  dbOpts <- mkDBOpts mainCfg hhOpts
   let tlEnv = initialEnv
   let m = fm $ toList $ optsFiles $ hhOpts
-  let hhEnv = buildEnv hhOpts lfmEnv tlEnv dbEnv
+  let hhEnv = buildEnv hhOpts lfmEnv tlEnv dbOpts
   runHarihara hhEnv $ bracketTagLib m
 
 -- | Clean up all remaining TagLib resources, both files and strings.
@@ -56,10 +56,10 @@ bracketTagLib :: Harihara a -> Harihara a
 bracketTagLib m = do
   logInfo "Running Harihara..."
   a <- m
-  fs <- taglib openFilePtrs
-  let n = length fs
-  logInfo $ "Closing " ++ show n ++ " TagLib file" ++ (if n /= 1 then "s" else "")
-  io (mapM_ cleanupFile fs >> freeTagLibStrings)
+  --fs <- taglib openFilePtrs
+  --let n = length fs
+  --logInfo $ "Closing " ++ show n ++ " TagLib file" ++ (if n /= 1 then "s" else "")
+  --io (mapM_ cleanupFile fs >> freeTagLibStrings)
   logInfo "Done!"
   return a
 
@@ -72,11 +72,10 @@ mkLastfmEnv c = LastfmEnv          <$>
   (apiKey <$> require c "api-key") <*>
   (sign <$> Secret <$> require c "secret")
 
-mkDBEnv :: Config -> HariharaOptions -> IO DBEnv
-mkDBEnv cfg opts = do
-  path <- lookupDefault (optsDBPath opts) cfg "db-path"
-  conn <- openDB path
-  return (DBEnv path conn)
+mkDBOpts :: Config -> HariharaOptions -> IO DBOpts
+mkDBOpts cfg opts = DBOpts                      <$>
+  lookupDefault (optsDBPath opts) cfg "db-path" <*>
+  (pure $ optsDBFresh opts)
 
 -- }}}
 

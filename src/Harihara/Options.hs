@@ -17,6 +17,7 @@ data HariharaOptions = HariharaOptions
   { optsLogLevel :: LogLevel
   , optsFiles    :: S.Set FilePath
   , optsDBPath   :: FilePath
+  , optsDBFresh  :: Bool
   } deriving (Show)
 
 defaultOptions :: HariharaOptions
@@ -24,24 +25,39 @@ defaultOptions = HariharaOptions
   { optsLogLevel = LogInfo
   , optsFiles    = S.empty
   , optsDBPath   = ".harihara.db"
+  , optsDBFresh  = False
   }
 
-setOptsLogLevel :: LogLevel -> OptionsBuilder
-setOptsLogLevel ll = onOptsLogLevel $ const ll
-
-setOptsDBPath :: FilePath -> OptionsBuilder
-setOptsDBPath fp = onOptsDBPath $ const fp
+--------
 
 onOptsLogLevel :: (LogLevel -> LogLevel)
   -> OptionsBuilder
 onOptsLogLevel f o = return $ o { optsLogLevel = f $ optsLogLevel o }
 
+setOptsLogLevel :: LogLevel -> OptionsBuilder
+setOptsLogLevel ll = onOptsLogLevel $ const ll
+
+--------
+
 onOptsFiles :: (S.Set FilePath -> S.Set FilePath)
   -> OptionsBuilder
 onOptsFiles f o = return $ o { optsFiles = f $ optsFiles o }
 
+--------
+
 onOptsDBPath :: (FilePath -> FilePath) -> OptionsBuilder
 onOptsDBPath f o = return $ o { optsDBPath = f $ optsDBPath o }
+
+setOptsDBPath :: FilePath -> OptionsBuilder
+setOptsDBPath fp = onOptsDBPath $ const fp
+
+--------
+
+onOptsDBFresh :: (Bool -> Bool) -> OptionsBuilder
+onOptsDBFresh f o = return $ o { optsDBFresh = f $ optsDBFresh o }
+
+setOptsDBFresh :: Bool -> OptionsBuilder
+setOptsDBFresh b = onOptsDBFresh $ const b
 
 -- }}}
 
@@ -59,6 +75,7 @@ defaultFlagHandlers :: [FlagHandler]
 defaultFlagHandlers =
   [ ( "log"      , "l"  , "[[0-4]|silent|error|warn|info|debug]" , handleLogLevel )
   , ( "database" , "db" , "<path/to/db>"                         , handleDBPath   )
+  , ( "fresh-db" , "f"  , ""                                     , handleDBFresh  )
   ]
 
 handleLogLevel :: Arg -> OptionsBuilder
@@ -81,6 +98,9 @@ handleLogLevel ll opts = do
 
 handleDBPath :: Arg -> OptionsBuilder
 handleDBPath fp = setOptsDBPath fp
+
+handleDBFresh :: Arg -> OptionsBuilder
+handleDBFresh _ = setOptsDBFresh True
 
 handleFile  :: Arg -> OptionsBuilder
 handleFile f = onOptsFiles $ S.insert f
