@@ -22,7 +22,7 @@ main = harihara configFiles $ \fs -> do
   forM_ fs $ \f -> skipIfFileBad $ do
     inf@(SongInfo tl art alb _ _ _ _) <- taglib f getSongInfo
     tr <- lastfm_getInfo_artist_track art "Moanin"
-    let row = SongRow tl art alb (trackMBId tr) f
+    let row = SongRow tl art alb (Just $ mbid tr) f
     db $ insertSong row
     db $ searchByFields [("artist",fromString "Art")]
     return ()

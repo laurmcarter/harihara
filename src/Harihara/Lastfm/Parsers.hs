@@ -24,21 +24,21 @@ generic_parse_getInfo typ =
 class (Show a, FromJSON a) => GetInfo a where
   parse_getInfo :: Value -> Parser a
 
-instance GetInfo AlbumResult where
+instance GetInfo AlbumInfo where
   parse_getInfo = generic_parse_getInfo "album"
 
-instance GetInfo ArtistResult where
+instance GetInfo ArtistInfo where
   parse_getInfo = generic_parse_getInfo "artist"
 
-instance GetInfo TagResult where
+instance GetInfo Tag where
   parse_getInfo = generic_parse_getInfo "tag"
 
-instance GetInfo TrackResult where
+instance GetInfo TrackInfo where
   parse_getInfo = generic_parse_getInfo "track"
 
 --------------------------------------------------------------------------------
 
-generic_parse_search :: FromJSON a => T.Text -> Value -> Parser [a]
+generic_parse_search :: (FromJSON a) => T.Text -> Value -> Parser [a]
 generic_parse_search typ =
   parseJSON                     >=>
   (.: "results")                >=>
@@ -49,16 +49,16 @@ generic_parse_search typ =
 class (Show a, FromJSON a) => Search a where
   parse_search  :: Value -> Parser [a]
 
-instance Search AlbumResult where
+instance Search AlbumSearch where
   parse_search = generic_parse_search "album"
 
-instance Search ArtistResult where
+instance Search ArtistSearch where
   parse_search = generic_parse_search "artist"
 
-instance Search TagResult where
+instance Search Tag where
   parse_search = generic_parse_search "tag"
 
-instance Search TrackResult where
+instance Search TrackSearch where
   parse_search = generic_parse_search "track"
 
 --------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ generic_parse_getCorrection _ _ = mzero
 class (Show a, FromJSON a) => GetCorrection a where
   parse_getCorrection :: Value -> Parser (Maybe a)
 
-instance GetCorrection ArtistResult where
+instance GetCorrection ArtistCorrection where
   parse_getCorrection = generic_parse_getCorrection "artist"
 
 --------------------------------------------------------------------------------
@@ -92,9 +92,9 @@ generic_parse_getSimilar typ =
 class (Show a, FromJSON a) => GetSimilar a where
   parse_getSimilar :: Value -> Parser [a]
 
-instance GetSimilar ArtistResult where
+instance GetSimilar ArtistSimilar where
   parse_getSimilar = generic_parse_getSimilar "artist"
 
-instance GetSimilar TagResult where
+instance GetSimilar Tag where
   parse_getSimilar = generic_parse_getSimilar "tag"
 

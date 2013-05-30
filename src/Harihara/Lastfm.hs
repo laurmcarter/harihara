@@ -20,10 +20,10 @@ import Harihara.Monad
 import Harihara.Utils
 
 -- | Retrieve a list of artists similar to one given.
-lastfm_similarArtists :: Text -> Harihara (Text,[ArtistResult])
+lastfm_similarArtists :: Text -> Harihara (Text,[ArtistSimilar])
 lastfm_similarArtists ar = do
   logInfo $ "Lastfm: Getting artists similar to " ++ show ar
   cor <- lastfm_getCorrection_artist ar
-  let ar' = maybe (capitalize ar) artistName cor
+  let ar' = maybe (capitalize ar) artistCorrectionName cor
   (ar',) <$> lastfm_getSimilar_artist ar'
 

@@ -4,11 +4,12 @@
 
 module Harihara.Lastfm.Requests where
 
+import Control.Applicative
 import Control.Exception
 import MonadLib
 import Data.Aeson.Encode.Pretty
 import Data.Aeson.Types
-import Network.Lastfm
+import qualified Network.Lastfm as FM
 import qualified Network.Lastfm.Album as Album
 import qualified Network.Lastfm.Artist as Artist
 import qualified Network.Lastfm.Tag as Tag
@@ -29,7 +30,7 @@ sendRequest :: (Show a) => (Value -> Parser a) -> KeyedRequest -> Harihara a
 sendRequest prs req = do
   key <- getApiKey <$> getLastfmEnv
   logInfo "Lastfm: Sending request"
-  mjs <- inBase $ lastfm $ req <*> key
+  mjs <- inBase $ FM.lastfm $ req <*> key
   case mjs of
     Nothing -> do
       logError "Lastfm: No response"
@@ -75,65 +76,65 @@ getSimilar req = do
 
 -- Search Requests {{{
 
-lastfm_search_album    :: Text -> Harihara [AlbumResult]
+lastfm_search_album    :: Text -> Harihara [AlbumSearch]
 lastfm_search_album  al = do
   logInfo $ "Album " ++ ppShow al
-  search $ Album.search  <*> album al
+  search $ Album.search  <*> FM.album al
 
-lastfm_search_artist   :: Text -> Harihara [ArtistResult]
+lastfm_search_artist   :: Text -> Harihara [ArtistSearch]
 lastfm_search_artist ar = do
   logInfo $ "Artist " ++ ppShow ar
-  search $ Artist.search <*> artist ar
+  search $ Artist.search <*> FM.artist ar
 
-lastfm_search_tag      :: Text -> Harihara [TagResult]
+lastfm_search_tag      :: Text -> Harihara [Tag]
 lastfm_search_tag    tg = do
   logInfo $ "Tag " ++ ppShow tg
-  search $ Tag.search    <*> tag tg
+  search $ Tag.search    <*> FM.tag tg
 
-lastfm_search_track    :: Text -> Harihara [TrackResult]
+lastfm_search_track    :: Text -> Harihara [TrackSearch]
 lastfm_search_track  tr = do
   logInfo $ "Track " ++ ppShow tr
-  search $ Track.search  <*> track tr
+  search $ Track.search  <*> FM.track tr
 
 -- }}}
 
 -- GetInfo Requests {{{
 
-lastfm_getInfo_artist     :: Text -> Harihara ArtistResult
+lastfm_getInfo_artist     :: Text -> Harihara ArtistInfo
 lastfm_getInfo_artist   ar = do
   logInfo $ "Artist " ++ ppShow ar
-  getInfo $ Artist.getInfo <*> artist ar
+  getInfo $ Artist.getInfo <*> FM.artist ar
 
-lastfm_getInfo_tag        :: Text -> Harihara TagResult
+lastfm_getInfo_tag        :: Text -> Harihara Tag
 lastfm_getInfo_tag      tg = do
   logInfo $ "Tag " ++ ppShow tg
-  getInfo $ Tag.getInfo    <*> tag tg
+  getInfo $ Tag.getInfo    <*> FM.tag tg
 
-lastfm_getInfo_artist_album :: Text -> Text -> Harihara AlbumResult
+lastfm_getInfo_artist_album :: Text -> Text -> Harihara AlbumInfo
 lastfm_getInfo_artist_album ar al = do
   logInfo $ "Artist " ++ ppShow ar ++ ", Album " ++ ppShow al
-  getInfo $ Album.getInfo  <*> artist ar <*> album al
+  getInfo $ Album.getInfo  <*> FM.artist ar <*> FM.album al
 
-lastfm_getInfo_artist_track :: Text -> Text -> Harihara TrackResult
+lastfm_getInfo_artist_track :: Text -> Text -> Harihara TrackInfo
 lastfm_getInfo_artist_track ar tr = do
   logInfo $ "Artist " ++ ppShow ar ++ ", Track " ++ ppShow tr
-  getInfo $ Track.getInfo  <*> artist ar <*> track tr
+  getInfo $ Track.getInfo  <*> FM.artist ar <*> FM.track tr
 
 
-lastfm_getInfo_album_mbid    :: Text -> Harihara AlbumResult
+lastfm_getInfo_album_mbid    :: Text -> Harihara AlbumInfo
 lastfm_getInfo_album_mbid  mb = do
   logInfo $ "MBID " ++ ppShow mb
-  getInfo $ Album.getInfo  <*> mbid mb
+  getInfo $ Album.getInfo  <*> FM.mbid mb
 
-lastfm_getInfo_artist_mbid   :: Text -> Harihara ArtistResult
+lastfm_getInfo_artist_mbid   :: Text -> Harihara ArtistInfo
 lastfm_getInfo_artist_mbid mb = do
   logInfo $ "MBID " ++ ppShow mb
-  getInfo $ Artist.getInfo <*> mbid mb
+  getInfo $ Artist.getInfo <*> FM.mbid mb
 
-lastfm_getInfo_track_mbid    :: Text -> Harihara TrackResult
+lastfm_getInfo_track_mbid    :: Text -> Harihara TrackInfo
 lastfm_getInfo_track_mbid  mb = do
   logInfo $ "MBID " ++ ppShow mb
-  getInfo $ Track.getInfo  <*> mbid mb
+  getInfo $ Track.getInfo  <*> FM.mbid mb
 
 -- tag_getInfo_mbid does not exist, as per liblastfm
 
@@ -141,10 +142,10 @@ lastfm_getInfo_track_mbid  mb = do
 
 -- GetCorrection Requests {{{
 
-lastfm_getCorrection_artist :: Text -> Harihara (Maybe ArtistResult)
+lastfm_getCorrection_artist :: Text -> Harihara (Maybe ArtistCorrection)
 lastfm_getCorrection_artist ar = do
   logInfo $ "Artist " ++ ppShow ar
-  getCorrection $ Artist.getCorrection <*> artist ar
+  getCorrection $ Artist.getCorrection <*> FM.artist ar
 
 -- track_getCorrection does not exist, b/c last.FM responses seem to be useless
 
@@ -152,15 +153,15 @@ lastfm_getCorrection_artist ar = do
 
 -- GetSimilar Requests {{{
 
-lastfm_getSimilar_artist   :: Text -> Harihara [ArtistResult]
+lastfm_getSimilar_artist   :: Text -> Harihara [ArtistSimilar]
 lastfm_getSimilar_artist ar = do
   logInfo $ "Artist " ++ ppShow ar
-  getSimilar $ Artist.getSimilar <*> artist ar
+  getSimilar $ Artist.getSimilar <*> FM.artist ar
 
-lastfm_getSimilar_tag      :: Text -> Harihara [TagResult]
+lastfm_getSimilar_tag      :: Text -> Harihara [Tag]
 lastfm_getSimilar_tag    tg = do
   logInfo $ "Tag " ++ ppShow tg
-  getSimilar $ Tag.getSimilar    <*> tag tg
+  getSimilar $ Tag.getSimilar    <*> FM.tag tg
 
 -- }}}
 
