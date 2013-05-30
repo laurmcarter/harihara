@@ -1,12 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Harihara.DB where
+module Harihara.DB
+  ( module Harihara.DB
+  , module Harihara.DB.Schema
+  ) where
 
 import Database.SQLite
 import MonadLib
+import Text.Show.Pretty hiding (Value (..))
 
 import Control.Applicative
-import Data.Text
+import qualified Data.ByteString as BS
+import qualified Data.List as L
+import qualified Data.Text as T
+
+import Harihara.DB.Schema
+import Harihara.Log
 
 -- DB Monad {{{
 
@@ -23,6 +32,10 @@ instance Applicative DB where
   pure = return
   (<*>) = ap
 
+instance MonadLog DB where
+  getLogLevel = fromEnv dbLogLevel
+  writeLog ll = io . putStrLn . (renderLevel ll ++)
+
 runDB :: DBEnv -> DB a -> IO a
 runDB env m = runReaderT env $ unDB m
 
@@ -34,7 +47,8 @@ io = DB . inBase
 -- DBEnv {{{
 
 data DBEnv = DBEnv
-  { dbConn :: SQLiteHandle
+  { dbConn   :: SQLiteHandle
+  , dbLogLevel :: LogLevel
   }
 
 getEnv :: DB DBEnv
@@ -59,107 +73,106 @@ data DBOpts = DBOpts
 
 -- Bracketing {{{
 
+setupTable :: DB (Maybe String)
+setupTable = dbPrim $ flip defineTable songTable
+
 openDB :: FilePath -> IO SQLiteHandle
-openDB fp = openConnection fp
+openDB = openConnection
 
 closeDB :: DB ()
-closeDB = do
-  conn <- getConn
-  io $ closeConnection conn
+closeDB = dbPrim closeConnection
 
-withDB :: FilePath -> DB a -> IO a
-withDB fp m = do
-  conn <- openDB fp
-  runDB (DBEnv conn) $ do
-    a <- m
-    closeDB
-    return a
+addRegexp :: DB ()
+addRegexp = dbPrim $ flip addRegexpSupport regex
+  where
+  regex r s = return (r `BS.isInfixOf` s)
+
+dbPrim :: (SQLiteHandle -> IO a) -> DB a
+dbPrim f = do
+  conn <- getConn
+  io $ f conn
 
 -- }}}
 
 -- DB Wrappers {{{
 
-
-
--- }}}
-
--- IsRow class {{{
-
-class IsRow r where
-  toRow :: r -> Row Value
-  fromRow :: Row Value -> Maybe r
-
-instance IsRow SongRow where
-  toRow (SongRow sid tl art alb mb fp) =
-    [ ("id"     , Int  $ toEnum sid)
-    , ("title"  , Text $ unpack tl)
-    , ("artist" , Text $ unpack art)
-    , ("album"  , Text $ unpack alb)
-    , ("mbid"   , Text $ unpack mb)
-    , ("file"   , Text $ unpack fp)
+insertSong :: SongRow -> DB ()
+insertSong s = do
+  logInfo "Inserting track"
+  logDebug $ "Track:\n" ++ ppShow s
+  execParams insertCmd (toRow s)
+  where
+  insertCmd = unwords
+    [ "INSERT INTO"
+    , "songs (title, artist, album, mbid, file)"
+    , "VALUES (:title, :artist, :album, :mbid, :file)"
     ]
-  fromRow rs = SongRow <$>
-    (int =<<  lookup "id"     rs) <*>
-    (text =<< lookup "title"  rs) <*>
-    (text =<< lookup "artist" rs) <*>
-    (text =<< lookup "album"  rs) <*>
-    (text =<< lookup "mbid"   rs) <*>
-    (text =<< lookup "file"   rs)
 
--- }}}
+getAllSongs :: DB [SongRow]
+getAllSongs = query "SELECT * FROM songs"
 
--- DB Schema {{{
+searchByField :: String -> Value -> DB [SongRow]
+searchByField f v = searchByFields [(f,v)]
 
-songTable :: SQLTable
-songTable = Table
-  { tabName        = "songs"
-  , tabColumns     =
-    [ idCol
-    , stringCol "title"
-    , stringCol "artist"
-    , stringCol "album"
-    , stringCol "mbid"
-    , stringCol "file"
-    ]
-  , tabConstraints = []
-  }
+searchByFields :: [(String,Value)] -> DB [SongRow]
+searchByFields fds = queryParams ("SELECT * FROM songs WHERE " ++ fields) params
+  where
+  fields = L.intercalate " and " $ map (\(f,_) -> unwords [f,"REGEXP",":"++f]) fds
+  params = map (\(f,v) -> (":"++f,v)) fds
 
-data SongRow = SongRow
-  { songRowId     :: Int
-  , songRowTitle  :: Text
-  , songRowArtist :: Text
-  , songRowAlbum  :: Text
-  , songRowMBID   :: Text
-  , songRowFile   :: Text
-  }
+exec :: String -> DB ()
+exec stm = handleExec $ \conn ->
+  execStatement_ conn stm
 
-idCol :: SQLColumn
-idCol = Column
-  { colName = "id"
-  , colType = SQLInt NORMAL True False
-  , colClauses =
-    [ PrimaryKey True
-    , Unique
-    , IsNullable False
-    ]
-  }
+execParams :: String -> [(String,Value)] -> DB ()
+execParams stm prm = handleExec $ \conn ->
+  execParamStatement_ conn stm prm
 
-stringCol :: String -> SQLColumn
-stringCol name = Column
-  { colName = name
-  , colType = SQLVarChar 1024
-  , colClauses = [IsNullable False]
-  }
+query :: String -> DB [SongRow]
+query qry = handleQuery $ \conn ->
+  execStatement conn qry
 
-type SQLColumn = Column SQLType
+queryParams :: String -> [(String,Value)] -> DB [SongRow]
+queryParams qry prm = handleQuery $ \conn ->
+  execParamStatement conn qry prm
 
-int :: Value -> Maybe Int
-int (Int i) = Just $ fromEnum i
-int _ = Nothing
+handleExec :: (SQLiteHandle -> IO (Maybe String)) -> DB ()
+handleExec f = do
+  res <- dbPrim f
+  case res of
+    Nothing  -> return ()
+    Just err -> do
+      logError $ "SQLite Error: " ++ err
+      return ()
 
-text :: Value -> Maybe Text
-text (Text t) = Just $ pack t
-text _ = Nothing
+handleQuery :: (SQLiteHandle -> IO (Either String [[Row Value]])) -> DB [SongRow]
+handleQuery f = do
+  addRegexp
+  res <- dbPrim f
+  case res of
+    Left err -> do
+      logError $ "SQLite Error: " ++ err
+      return []
+    Right rss -> case Prelude.concat <$> mapM (mapM fromRow) rss of
+      Nothing -> do
+        logError "SQLite Parse Error"
+        logDebug $ "SQLite Row: " ++ ppShow rss
+        return []
+      Just ss -> do
+        logDebug $ "SQLite Response: " ++ ppShow ss
+        return ss
+
+{-
+execStatement :: SQLiteResult a => SQLiteHandle -> String -> IO (Either String [[Row a]])
+
+execStatement_ :: SQLiteHandle -> String -> IO (Maybe String)
+
+execParamStatement :: SQLiteResult a => SQLiteHandle -> String -> [(String, Value)] -> IO (Either String [[Row a]])
+
+execParamStatement_ :: SQLiteHandle -> String -> [(String, Value)] -> IO (Maybe String)
+
+insertRow :: SQLiteHandle -> TableName -> Row String -> IO (Maybe String)
+-}
 
 -- }}}
 

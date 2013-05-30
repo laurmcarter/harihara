@@ -13,6 +13,7 @@ import qualified Network.Lastfm.Album as Album
 import qualified Network.Lastfm.Artist as Artist
 import qualified Network.Lastfm.Tag as Tag
 import qualified Network.Lastfm.Track as Track
+import Text.Show.Pretty hiding (Value(..))
 
 import Data.Text
 import qualified Data.ByteString.Lazy.Char8 as C8
@@ -43,7 +44,7 @@ sendRequest prs req = do
           logError $  "Lastfm: No Parse: " ++ err
           inBase $ throw $ ParseError err
         Right res -> do
-          logDebug $ "Lastfm: Parse Successful:\n" ++ show res
+          logDebug $ "Lastfm: Parse Successful:\n" ++ ppShow res
           return res
 
 -- | generic function for Last.fm's *.search call.
@@ -76,22 +77,22 @@ getSimilar req = do
 
 lastfm_search_album    :: Text -> Harihara [AlbumResult]
 lastfm_search_album  al = do
-  logInfo $ "Album " ++ show al
+  logInfo $ "Album " ++ ppShow al
   search $ Album.search  <*> album al
 
 lastfm_search_artist   :: Text -> Harihara [ArtistResult]
 lastfm_search_artist ar = do
-  logInfo $ "Artist " ++ show ar
+  logInfo $ "Artist " ++ ppShow ar
   search $ Artist.search <*> artist ar
 
 lastfm_search_tag      :: Text -> Harihara [TagResult]
 lastfm_search_tag    tg = do
-  logInfo $ "Tag " ++ show tg
+  logInfo $ "Tag " ++ ppShow tg
   search $ Tag.search    <*> tag tg
 
 lastfm_search_track    :: Text -> Harihara [TrackResult]
 lastfm_search_track  tr = do
-  logInfo $ "Track " ++ show tr
+  logInfo $ "Track " ++ ppShow tr
   search $ Track.search  <*> track tr
 
 -- }}}
@@ -100,38 +101,38 @@ lastfm_search_track  tr = do
 
 lastfm_getInfo_artist     :: Text -> Harihara ArtistResult
 lastfm_getInfo_artist   ar = do
-  logInfo $ "Artist " ++ show ar
+  logInfo $ "Artist " ++ ppShow ar
   getInfo $ Artist.getInfo <*> artist ar
 
 lastfm_getInfo_tag        :: Text -> Harihara TagResult
 lastfm_getInfo_tag      tg = do
-  logInfo $ "Tag " ++ show tg
+  logInfo $ "Tag " ++ ppShow tg
   getInfo $ Tag.getInfo    <*> tag tg
 
 lastfm_getInfo_artist_album :: Text -> Text -> Harihara AlbumResult
 lastfm_getInfo_artist_album ar al = do
-  logInfo $ "Artist " ++ show ar ++ ", Album " ++ show al
+  logInfo $ "Artist " ++ ppShow ar ++ ", Album " ++ ppShow al
   getInfo $ Album.getInfo  <*> artist ar <*> album al
 
 lastfm_getInfo_artist_track :: Text -> Text -> Harihara TrackResult
 lastfm_getInfo_artist_track ar tr = do
-  logInfo $ "Artist " ++ show ar ++ ", Track " ++ show tr
+  logInfo $ "Artist " ++ ppShow ar ++ ", Track " ++ ppShow tr
   getInfo $ Track.getInfo  <*> artist ar <*> track tr
 
 
 lastfm_getInfo_album_mbid    :: Text -> Harihara AlbumResult
 lastfm_getInfo_album_mbid  mb = do
-  logInfo $ "MBID " ++ show mb
+  logInfo $ "MBID " ++ ppShow mb
   getInfo $ Album.getInfo  <*> mbid mb
 
 lastfm_getInfo_artist_mbid   :: Text -> Harihara ArtistResult
 lastfm_getInfo_artist_mbid mb = do
-  logInfo $ "MBID " ++ show mb
+  logInfo $ "MBID " ++ ppShow mb
   getInfo $ Artist.getInfo <*> mbid mb
 
 lastfm_getInfo_track_mbid    :: Text -> Harihara TrackResult
 lastfm_getInfo_track_mbid  mb = do
-  logInfo $ "MBID " ++ show mb
+  logInfo $ "MBID " ++ ppShow mb
   getInfo $ Track.getInfo  <*> mbid mb
 
 -- tag_getInfo_mbid does not exist, as per liblastfm
@@ -142,7 +143,7 @@ lastfm_getInfo_track_mbid  mb = do
 
 lastfm_getCorrection_artist :: Text -> Harihara (Maybe ArtistResult)
 lastfm_getCorrection_artist ar = do
-  logInfo $ "Artist " ++ show ar
+  logInfo $ "Artist " ++ ppShow ar
   getCorrection $ Artist.getCorrection <*> artist ar
 
 -- track_getCorrection does not exist, b/c last.FM responses seem to be useless
@@ -153,12 +154,12 @@ lastfm_getCorrection_artist ar = do
 
 lastfm_getSimilar_artist   :: Text -> Harihara [ArtistResult]
 lastfm_getSimilar_artist ar = do
-  logInfo $ "Artist " ++ show ar
+  logInfo $ "Artist " ++ ppShow ar
   getSimilar $ Artist.getSimilar <*> artist ar
 
 lastfm_getSimilar_tag      :: Text -> Harihara [TagResult]
 lastfm_getSimilar_tag    tg = do
-  logInfo $ "Tag " ++ show tg
+  logInfo $ "Tag " ++ ppShow tg
   getSimilar $ Tag.getSimilar    <*> tag tg
 
 -- }}}

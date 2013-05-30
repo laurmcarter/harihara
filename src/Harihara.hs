@@ -6,16 +6,19 @@ module Harihara
   , module H
   ) where
 
-import Audio.TagLib.Internal hiding (io)
+import Audio.TagLib.Internal hiding (io, removeFile)
 
 import Data.Configurator
 import Data.Configurator.Types
 import Network.Lastfm
 
 import Control.Exception
+import Control.Monad (when)
 import Data.Set (toList)
 import Data.Typeable (Typeable())
 import System.Environment
+import System.Directory
+import System.IO.Error
 
 import Harihara.DB      as H hiding (io)
 import Harihara.Lastfm  as H
@@ -27,6 +30,7 @@ import Harihara.Utils   as H
 
 data HariharaException
   = Usage String
+  | CantFreshDB String
   deriving (Show,Typeable)
 
 instance Exception HariharaException
@@ -49,7 +53,9 @@ harihara cfs fm = do
   let tlEnv = initialEnv
   let m = fm $ toList $ optsFiles $ hhOpts
   let hhEnv = buildEnv hhOpts lfmEnv tlEnv dbOpts
-  runHarihara hhEnv $ bracketTagLib m
+  evalHarihara hhEnv $ bracketTagLib $ do
+    when (dbFresh dbOpts) $ makeFreshDB $ dbPath dbOpts
+    m
 
 -- | Clean up all remaining TagLib resources, both files and strings.
 bracketTagLib :: Harihara a -> Harihara a
@@ -60,7 +66,7 @@ bracketTagLib m = do
   --let n = length fs
   --logInfo $ "Closing " ++ show n ++ " TagLib file" ++ (if n /= 1 then "s" else "")
   --io (mapM_ cleanupFile fs >> freeTagLibStrings)
-  logInfo "Done!"
+  logInfo "Harihara finished"
   return a
 
 -- Configuration Aggregation {{{
@@ -79,3 +85,22 @@ mkDBOpts cfg opts = DBOpts                      <$>
 
 -- }}}
 
+makeFreshDB :: FilePath -> Harihara ()
+makeFreshDB fp = do
+  logInfo "Removing existing DB"
+  io $ removeIfExists fp
+  logInfo "Making fresh DB"
+  merr <- withDB fp setupTable
+  case merr of
+    Nothing  -> logInfo "Done"
+    Just err -> do
+      logError "Couldn't make a fresh database"
+      io $ throw $ CantFreshDB err
+      
+
+removeIfExists :: FilePath -> IO ()
+removeIfExists fileName = removeFile fileName `catch` handleExists
+  where
+  handleExists e
+    | isDoesNotExistError e = return ()
+    | otherwise = throwIO e

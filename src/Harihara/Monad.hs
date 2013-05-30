@@ -7,9 +7,10 @@ module Harihara.Monad where
 import MonadLib
 
 import qualified Audio.TagLib as TL
-import Audio.TagLib.Internal (FileId (), TagLibEnv (..))
+import Audio.TagLib.Internal hiding (io)
 
 import Control.Applicative
+import Control.Exception
 
 import Harihara.DB hiding (io)
 import Harihara.Lastfm.Types
@@ -32,8 +33,11 @@ instance Monad Harihara where
 io :: IO a -> Harihara a
 io = Harihara . inBase
 
-runHarihara :: HariharaEnv -> Harihara a -> IO a
-runHarihara env = evalStateT env . unHarihara
+runHarihara :: HariharaEnv -> Harihara a -> IO (a,HariharaEnv)
+runHarihara env = runStateT env . unHarihara
+
+evalHarihara :: HariharaEnv -> Harihara a -> IO a
+evalHarihara env = evalStateT env . unHarihara
 
 instance BaseM Harihara IO where
   inBase = Harihara . inBase
@@ -42,13 +46,13 @@ instance MonadLog Harihara where
   getLogLevel = fromHHEnv logLevel
   writeLog ll = io . putStrLn . (renderLevel ll ++)
 
-renderLevel :: LogLevel -> String
-renderLevel ll = case ll of
-  LogSilent -> "[ \"Silent\" ] "
-  LogError  -> "[ Error ] "
-  LogWarn   -> "[ Warn  ] "
-  LogInfo   -> "[ Info  ] "
-  LogDebug  -> "[ Debug ] "
+catchHarihara :: (Exception e) => Harihara a -> (e -> Harihara a) -> Harihara a
+m `catchHarihara` f = do
+  env <- getHHEnv
+  io $ catch
+    (evalHarihara env m)
+    (evalHarihara env . f)
+
 
 -- }}}
 
@@ -129,16 +133,18 @@ taglib fp f = do
   logInfo "TagLib"
   io $ TL.taglib (f =<< TL.openFile fp)
 
-{-
-taglib :: TagLib a -> Harihara a
-taglib m = do
-  env      <- getTagLibEnv
-  logInfo "TagLib"
-  (a,env') <- io $ runTagLib env m
-  logDebug "Updating TagLibEnv"
-  setTagLibEnv env'
-  return a
--}
+-- | Catch the TagLib exceptions associated with an
+--   incompatible or unopenable file. Re-throw any other
+--   exception encountered.
+skipIfFileBad :: Harihara () -> Harihara ()
+skipIfFileBad m = catchHarihara m $ \e -> case e of
+  InvalidFile fp -> do
+    logWarn $ "Invalid TagLib file: " ++ show fp
+    logWarn "Skipping."
+  UnableToOpen fp -> do
+    logWarn $ "TagLib unable to open file: " ++ show fp
+    logWarn "Skipping."
+  _ -> io $ throw e
 
 -- }}}
 
@@ -148,7 +154,17 @@ db :: DB a -> Harihara a
 db m = do
   fp <- dbPath <$> getDatabaseOpts
   logInfo "DB"
-  io $ withDB fp m
+  withDB fp m
+
+withDB :: FilePath -> DB a -> Harihara a
+withDB fp m = do
+  ll <- getLogLevel
+  io $ do
+    conn <- openDB fp
+    runDB (DBEnv conn ll) $ do
+      a <- m
+      closeDB
+      return a
 
 -- }}}
 

@@ -100,7 +100,14 @@ handleDBPath :: Arg -> OptionsBuilder
 handleDBPath fp = setOptsDBPath fp
 
 handleDBFresh :: Arg -> OptionsBuilder
-handleDBFresh _ = setOptsDBFresh True
+handleDBFresh b = setOptsDBFresh shouldFresh
+  where
+  shouldFresh = case b of
+    'Y':_ -> True
+    'y':_ -> True
+    'N':_ -> False
+    'n':_ -> False
+    _     -> optsDBFresh $ defaultOptions
 
 handleFile  :: Arg -> OptionsBuilder
 handleFile f = onOptsFiles $ S.insert f

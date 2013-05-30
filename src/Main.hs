@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Audio.TagLib hiding (io, taglib)
 import Data.Configurator
 import MonadLib
 
@@ -20,12 +19,11 @@ configFiles =
 
 main :: IO ()
 main = harihara configFiles $ \fs -> do
-  forM_ fs $ \f -> do
-    art <- taglib f getArtist
-    io $ putStrLn $ "Artist is: " ++ show art
-    (art',sims) <- lastfm_similarArtists art
-    when (art /= art') $ taglib f $ flip setArtist art'
-    io $ do
-      putStrLn "10 Similar Artists:"
-      mapM_ (print . artistName) $ take 10 sims
+  forM_ fs $ \f -> skipIfFileBad $ do
+    inf@(SongInfo tl art alb _ _ _ _) <- taglib f getSongInfo
+    tr <- lastfm_getInfo_artist_track art "Moanin"
+    let row = SongRow tl art alb (trackMBId tr) f
+    db $ insertSong row
+    db $ searchByFields [("artist",fromString "Art")]
+    return ()
 

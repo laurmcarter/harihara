@@ -1,15 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
-module Harihara.Log (
-    LogLevel (..)
-  , LastfmException (..)
-  , TagException (..)
-  , MonadLog (..)
-  , logError
-  , logWarn
-  , logInfo
-  , logDebug
-  ) where
+module Harihara.Log where
 
 import Control.Applicative ((<$>))
 import Control.Exception
@@ -63,6 +54,14 @@ filterLog :: (MonadLog m) => LogLevel -> String -> m ()
 filterLog lvl msg = do
   shouldLog <- (lvl <=) <$> getLogLevel
   when shouldLog $ writeLog lvl msg
+
+renderLevel :: LogLevel -> String
+renderLevel ll = case ll of
+  LogSilent -> "[ \"Silent\" ] "
+  LogError  -> "[ Error ] "
+  LogWarn   -> "[ Warn  ] "
+  LogInfo   -> "[ Info  ] "
+  LogDebug  -> "[ Debug ] "
 
 -- }}}
 

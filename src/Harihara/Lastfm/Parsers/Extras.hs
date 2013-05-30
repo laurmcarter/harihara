@@ -6,6 +6,7 @@ import Data.Aeson.Types
 
 import Control.Applicative
 import Control.Monad
+import Data.Maybe (listToMaybe)
 import Data.Text
 
 toBool :: Parser Int -> Parser Bool
@@ -24,9 +25,17 @@ o @@ t = o .: "@attr" >>= (.: t)
 (@@?) :: (FromJSON a) => Object -> Text -> Parser (Maybe a)
 o @@? t = o .:? "@attr" >>= maybe (return Nothing) (fmap Just . (.: t))
 
+numStr :: Parser (Maybe String) -> Parser (Maybe Int)
+numStr m = do
+  ma <- m
+  return (ma >>= maybeRead)
+
 oneOrMore :: (FromJSON a) => Value -> Parser [a]
 oneOrMore v = ((:[]) <$> parseJSON v) `mplus` parseJSON v
 
 couldBeEither :: (FromJSON a,FromJSON b) => Value -> Parser (Either a b)
 couldBeEither v = (Left <$> parseJSON v) `mplus` (Right <$> parseJSON v)
+
+maybeRead :: Read a => String -> Maybe a
+maybeRead = fmap fst . listToMaybe . reads
 

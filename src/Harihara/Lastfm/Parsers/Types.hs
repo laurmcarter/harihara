@@ -12,28 +12,155 @@ import Data.Text
 import Harihara.Lastfm.Parsers.Extras
 
 type URL = Text
+type MBID = Text
+type Match = Double
+
+data Tag = Tag
+  { tagName
+  , tagURL
+  }
+
+-- GetInfo {{{
+
+data AlbumInfo = AlbumInfo
+  { albumInfoName     :: Text
+  , albumInfoArtist   :: Text
+  , albumInfoMBID     :: MBID
+  , albumInfoURL      :: URL
+  , albumInfoRelease  :: Text
+  , albumInfoImages   :: [Image]
+  , albumInfoTopTags  :: [Tag]
+  , albumInfoTracks   :: [AlbumInfoTrack]
+  } 
+
+data AlbumInfoTrack = AlbumInfoTrack
+  { albumInfoTrackName     :: Text
+  , albumInfoTrackRank     :: Int
+  , albumInfoTrackDuration :: Int
+  , albumInfoTrackArtist   :: Text
+  }
+
+data ArtistInfo = ArtistInfo
+  { artistInfoName    :: Text
+  , artistInfoMBID    :: MBID
+  , artistInfoImages  :: [Image]
+  , artistInfoSimilar :: [ArtistInfoArtist]
+  , artistInfoTags    :: [Tag]
+  }
+
+data ArtistInfoArtist = ArtistInfoArtist
+  { artistInfoArtistName    :: Text
+  , artistInfoArtistMBID    :: MBID
+  , artistInfoArtistImages  :: [Image]
+  }
+
+data TrackInfo = TrackInfo
+    { trackInfoName    :: Text
+    , trackInfoMBID    :: MBID
+    , trackInfoURL     :: URL
+    , trackInfoArtist  :: TrackInfoArtist
+    , trackInfoAlbum   :: TrackInfoAlbum
+    , trackInfoTopTags :: [Tag]
+    }
+
+data TrackInfoArtist = TrackInfoArtist
+  { trackInfoArtistName :: Text
+  , trackInfoArtistMBId :: MBID
+  , trackInfoArtistURL  :: URL
+  }
+
+data TrackInfoAlbum = TrackInfoAlbum 
+  { trackInfoAlbumArtist :: Text
+  , trackInfoAlbumTitle  :: Text
+  , trackInfoAlbumMBID   :: MBID
+  , trackInfoAlbumURL    :: Text
+  }
+
+-- }}}
+
+-- Search {{{
+
+data AlbumSearch = AlbumSearch
+  { albumSearchName   :: Text
+  , albumSearchArtist :: Text
+  , albumSearchURL    :: URL
+  , albumSearchImages :: [Image]
+  }
+
+data ArtistSearch = ArtistSearch
+  { artistSearchName   :: Text
+  , artistSearchMBID   :: MBID
+  , artistSearchURL    :: URL
+  , artistSearchImages :: [Image]
+  }
+
+data TrackSearch = TrackSearch
+  { trackSearchName   :: Text
+  , trackSearchArtist :: Text
+  , trackSearchURL    :: URL
+  , trackSearchImages :: [Image]
+  }
+
+-- }}}
+
+-- GetSimilar {{{
+
+data ArtistSimilar = ArtistSimilar
+  { artistSimilarName  :: Text
+  , artistSimilarMBID  :: MBID
+  , artistSimilarMatch :: Match
+  , artistSimilarURL   :: URL
+  }
+
+data TrackSimilar = TrackSimilar
+  { trackSimilarName :: Text
+  , trackSimilarMatch :: Match
+  , trackSimilarArtist :: TrackSimilarArtist
+  }
+
+data TrackSimilarArtist = TrackSimilarArtist 
+  { trackSimilarArtistName :: Text
+  , trackSimilarArtistMBId :: Text
+  , trackSimilarArtistURL  :: URL
+  }
+
+-- }}}
+
+-- GetCorrection {{{
+
+data ArtistCorrection = ArtistCorrection 
+  { artistCorrectionName :: Text
+  , artistCorrectionMBID :: MBID
+  , artistCorrectionURL  :: URL
+  }
+
+data TrackCorrection = TrackCorrection
+  { trackCorrectionName :: Text
+  , trackCorrectionURL  :: URL
+  , trackCorrectionArtist :: ArtistCorrection
+  }
+
+-- }}}
 
 --------------------------------------------------------------------------------
 
 data AlbumResult = AlbumResult
-  { albumName        :: !Text
+  { albumName        :: !(Maybe Text)
   , albumArtist      :: !Text
-  , albumId          :: !Integer
   , albumURL         :: !URL
   , albumImages      :: ![Image]
   , albumMBId        :: !(Maybe Text)          -- +-in 'getInfo', not in 'search'
   , albumReleaseDate :: !(Maybe Text)          -- |
   , albumTracks      :: !(Maybe [TrackResult]) -- |
   , albumTags        :: !(Maybe [TagResult])   -- +
-  , positionInAlbum  :: !(Maybe Integer)       --  NB: in 'track.getInfo'
+  , positionInAlbum  :: !(Maybe Int)       --  NB: in 'track.getInfo'
   } deriving (Show)
 
 instance FromJSON AlbumResult where
   parseJSON (Object r) =
       AlbumResult              <$>
-      r .:       "name"        <*>
+      r .:?      "name"        <*>
       r .:       "artist"      <*>
-      r .:       "id"          <*>
       r .:       "url"         <*>
       r .:       "image"       <*>
       r .:?      "mbid"        <*>
@@ -42,7 +169,7 @@ instance FromJSON AlbumResult where
         >>=? (.: "track"))     <*>
       (r .:?     "toptags"
         >>=? (.: "tag"))       <*>
-      r @@?      "position"
+      (numStr $ r @@?      "position")
   parseJSON _ = mzero
 
 --------------------------------------------------------------------------------
@@ -92,7 +219,7 @@ data TrackResult = TrackResult
   , trackURL      :: !URL
   , trackImages   :: !(Maybe [Image])     -- NB: in 'search', not in 'getInfo'
   , trackMBId     :: !(Maybe Text)        -- +-in 'getInfo', not in 'search'
-  , trackDuration :: !(Maybe Integer)     -- |
+  , trackDuration :: !(Maybe Int)     -- |
   , trackAlbum    :: !(Maybe AlbumResult) -- |
   , trackRank     :: !(Maybe Integer)     -- +
   } deriving (Show)
@@ -104,9 +231,10 @@ instance FromJSON TrackResult where
       (r .:  "artist"
         >>= couldBeEither) <*>
       r .:  "url"          <*>
-      r .:  "image"        <*>
+      r .:? "image"        <*>
       r .:? "mbid"         <*>
-      r .:? "duration"     <*>
+      (numStr $
+        r .:? "duration")  <*>
       r .:? "album"        <*>
       r @@? "rank"
   parseJSON _ = mzero
