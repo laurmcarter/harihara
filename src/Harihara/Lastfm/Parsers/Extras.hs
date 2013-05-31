@@ -13,7 +13,10 @@ toBool :: Parser Int -> Parser Bool
 toBool = fmap (0 /=)
 
 (.::) :: (FromJSON a) => Object -> (Text,Text) -> Parser [a]
-r .:: (as,a) = r .: as >>= (.: a) >>= oneOrMore
+r .:: (as,a) = listOrNull as a r >>= \l -> case l of
+  Just x  -> oneOrMore x
+  Nothing -> return []
+-- r .: as >>= (.: a) >>= oneOrMore
 
 (@@) :: (FromJSON a) => Object -> Text -> Parser a
 o @@ t = o .: "@attr" >>= (.: t)
@@ -51,4 +54,12 @@ numStr :: Parser (Maybe String) -> Parser (Maybe Int)
 numStr m = do
   ma <- m
   return (ma >>= maybeRead)
+
+listOrNull :: (FromJSON a) => Text -> Text -> Object -> Parser (Maybe a)
+listOrNull ts t o = do
+  eo <- o .: ts >>= couldBeEither
+    :: Parser (Either String Object)
+  case eo of
+    Left _ -> return Nothing
+    Right o' -> fmap Just $ o' .: t
 

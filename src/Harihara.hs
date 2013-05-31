@@ -9,6 +9,7 @@ module Harihara
 import Data.Configurator
 import Data.Configurator.Types
 import Network.Lastfm
+import Text.Show.Pretty
 
 import Control.Exception
 import Control.Monad (when)
@@ -48,11 +49,12 @@ harihara cfs fm = do
   mainCfg <- load cfs
   lfmEnv <- mkLastfmEnv mainCfg
   dbOpts <- mkDBOpts mainCfg hhOpts
-  let m = fm $ toList $ optsFiles $ hhOpts
+  let fs = toList $ optsFiles hhOpts
   let hhEnv = buildEnv hhOpts lfmEnv dbOpts
   evalHarihara hhEnv $ bracketTagLib $ do
+    logDebug $ "Harihara Options:\n" ++ ppShow hhOpts
     when (dbFresh dbOpts) $ makeFreshDB $ dbPath dbOpts
-    m
+    fm fs
 
 -- | Clean up all remaining TagLib resources, both files and strings.
 bracketTagLib :: Harihara a -> Harihara a

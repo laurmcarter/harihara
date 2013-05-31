@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Harihara.Lastfm.Parsers.Types where
 
@@ -214,7 +215,7 @@ data TrackInfo = TrackInfo
     , trackInfoMBID    :: MBID
     , trackInfoURL     :: URL
     , trackInfoArtist  :: TrackInfoArtist
-    , trackInfoAlbum   :: TrackInfoAlbum
+    , trackInfoAlbum   :: Maybe TrackInfoAlbum
     , trackInfoTopTags :: [Tag]
     } deriving (Show)
 
@@ -230,7 +231,7 @@ instance HasURL TrackInfo where
 instance HasArtist TrackInfo TrackInfoArtist where
   artist = trackInfoArtist
 
-instance HasAlbum TrackInfo TrackInfoAlbum where
+instance HasAlbum TrackInfo (Maybe TrackInfoAlbum) where
   album = trackInfoAlbum
 
 instance HasTags TrackInfo where
@@ -243,7 +244,7 @@ instance FromJSON TrackInfo where
     r .:  "mbid"   <*>
     r .:  "url"    <*>
     r .:  "artist" <*>
-    r .:  "album"  <*>
+    r .:? "album"  <*>
     r .:: ("toptags","tag")
   parseJSON _ = mzero
 

@@ -2,6 +2,8 @@
 
 import Data.Configurator
 import MonadLib
+import System.Directory
+import System.FilePath
 import Text.Show.Pretty
 
 import Harihara
@@ -21,11 +23,13 @@ configFiles =
 main :: IO ()
 main = harihara configFiles $ \fs -> do
   forM_ fs $ \f -> skipIfFileBad $ do
-    (TagTrack tl art alb _ _ _ _) <- taglib f getTrackInfo
+    pwd <- io getCurrentDirectory
+    let fp = pwd </> f
+    (TagTrack tl art alb _ _ _ _) <- taglib fp getTrackInfo
     tr <- lastfm_getInfo_artist_track art tl
     al <- lastfm_getInfo_artist_album art alb
-    let t = dbTrack tl art alb f (Just al) (Just tr)
+    let t = dbTrack tl art alb fp (Just al) (Just tr)
     db $ insertTrack t
     s <- db $ searchByFields "tracks" [("artist",fromString "Art")]
-    io $ putStrLn $ ppShow s
+    io $ putStrLn $ ppShow $ map dbTrackTitle s
 

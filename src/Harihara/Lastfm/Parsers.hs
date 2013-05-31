@@ -65,13 +65,9 @@ instance Search TrackSearch where
 
 generic_parse_getCorrection :: FromJSON a => T.Text -> Value -> Parser (Maybe a)
 generic_parse_getCorrection typ (Object o) = do
-  eo <- o .: "corrections" >>= couldBeEither
-    :: Parser (Either String Object)
-  case eo of
-    Left _ -> return Nothing
-    Right o' -> fmap Just $ do
-      r <- o' .: "correction"
-      r .: typ
+  listOrNull "corrections" "correction" o >>= \mr -> case mr of
+    Just r -> r .: typ
+    Nothing -> return Nothing
 generic_parse_getCorrection _ _ = mzero
 
 class (Show a, FromJSON a) => GetCorrection a where
