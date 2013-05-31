@@ -2,6 +2,7 @@
 
 import Data.Configurator
 import MonadLib
+import Text.Show.Pretty
 
 import Harihara
 
@@ -20,10 +21,11 @@ configFiles =
 main :: IO ()
 main = harihara configFiles $ \fs -> do
   forM_ fs $ \f -> skipIfFileBad $ do
-    inf@(SongInfo tl art alb _ _ _ _) <- taglib f getSongInfo
-    tr <- lastfm_getInfo_artist_track art "Moanin"
-    let row = SongRow tl art alb (Just $ mbid tr) f
-    db $ insertSong row
-    db $ searchByFields [("artist",fromString "Art")]
-    return ()
+    (TagTrack tl art alb _ _ _ _) <- taglib f getTrackInfo
+    tr <- lastfm_getInfo_artist_track art tl
+    al <- lastfm_getInfo_artist_album art alb
+    let t = dbTrack tl art alb f (Just al) (Just tr)
+    db $ insertTrack t
+    s <- db $ searchByFields "tracks" [("artist",fromString "Art")]
+    io $ putStrLn $ ppShow s
 

@@ -9,6 +9,7 @@ module Harihara.Lastfm (
   ) where
 
 import Network.Lastfm
+import Text.Show.Pretty
 
 import Data.Text
 
@@ -22,7 +23,7 @@ import Harihara.Utils
 -- | Retrieve a list of artists similar to one given.
 lastfm_similarArtists :: Text -> Harihara (Text,[ArtistSimilar])
 lastfm_similarArtists ar = do
-  logInfo $ "Lastfm: Getting artists similar to " ++ show ar
+  logInfo $ "Lastfm: Getting artists similar to " ++ ppShow ar
   cor <- lastfm_getCorrection_artist ar
   let ar' = maybe (capitalize ar) artistCorrectionName cor
   (ar',) <$> lastfm_getSimilar_artist ar'

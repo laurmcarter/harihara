@@ -8,6 +8,7 @@ import MonadLib
 
 import qualified Audio.TagLib as TL
 import Audio.TagLib.Internal hiding (io)
+import Text.Show.Pretty (ppShow)
 
 import Control.Applicative
 import Control.Exception
@@ -61,7 +62,6 @@ m `catchHarihara` f = do
 data HariharaEnv = HariharaEnv
   { logLevel     :: LogLevel
   , lastfmEnv    :: LastfmEnv
-  , taglibEnv    :: TagLibEnv
   , databaseOpts :: DBOpts
   }
 
@@ -71,13 +71,10 @@ onLogLevel f e = e { logLevel = f $ logLevel e }
 onLastfmEnv :: (LastfmEnv -> LastfmEnv) -> HariharaEnv -> HariharaEnv
 onLastfmEnv f e = e { lastfmEnv = f $ lastfmEnv e }
 
-onTagLibEnv :: (TagLibEnv -> TagLibEnv) -> HariharaEnv -> HariharaEnv
-onTagLibEnv f e = e { taglibEnv = f $ taglibEnv e }
-
 onDatabaseOpts :: (DBOpts -> DBOpts) -> HariharaEnv -> HariharaEnv
 onDatabaseOpts f e = e { databaseOpts = f $ databaseOpts e }
 
-buildEnv :: HariharaOptions -> LastfmEnv -> TagLibEnv -> DBOpts -> HariharaEnv
+buildEnv :: HariharaOptions -> LastfmEnv -> DBOpts -> HariharaEnv
 buildEnv = HariharaEnv . optsLogLevel
 
 -- }}}
@@ -93,23 +90,14 @@ fromHHEnv = Harihara . gets
 modifyHHEnv :: (HariharaEnv -> HariharaEnv) -> Harihara ()
 modifyHHEnv = Harihara . modify
 
-getTagLibEnv :: Harihara TagLibEnv
-getTagLibEnv = fromHHEnv taglibEnv
-
 getLastfmEnv :: Harihara LastfmEnv
 getLastfmEnv = fromHHEnv lastfmEnv
 
 getDatabaseOpts :: Harihara DBOpts
 getDatabaseOpts = fromHHEnv databaseOpts
 
-modifyTagLibEnv :: (TagLibEnv -> TagLibEnv) -> Harihara ()
-modifyTagLibEnv = modifyHHEnv . onTagLibEnv
-
 modifyLastfmEnv :: (LastfmEnv -> LastfmEnv) -> Harihara ()
 modifyLastfmEnv = modifyHHEnv . onLastfmEnv
-
-setTagLibEnv :: TagLibEnv -> Harihara ()
-setTagLibEnv = modifyTagLibEnv . const
 
 gets :: (StateM m s) => (s -> a) -> m a
 gets f = do
@@ -139,10 +127,10 @@ taglib fp f = do
 skipIfFileBad :: Harihara () -> Harihara ()
 skipIfFileBad m = catchHarihara m $ \e -> case e of
   InvalidFile fp -> do
-    logWarn $ "Invalid TagLib file: " ++ show fp
+    logWarn $ "Invalid TagLib file: " ++ ppShow fp
     logWarn "Skipping."
   UnableToOpen fp -> do
-    logWarn $ "TagLib unable to open file: " ++ show fp
+    logWarn $ "TagLib unable to open file: " ++ ppShow fp
     logWarn "Skipping."
   _ -> io $ throw e
 

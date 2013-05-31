@@ -6,8 +6,6 @@ module Harihara
   , module H
   ) where
 
-import Audio.TagLib.Internal hiding (io, removeFile)
-
 import Data.Configurator
 import Data.Configurator.Types
 import Network.Lastfm
@@ -50,9 +48,8 @@ harihara cfs fm = do
   mainCfg <- load cfs
   lfmEnv <- mkLastfmEnv mainCfg
   dbOpts <- mkDBOpts mainCfg hhOpts
-  let tlEnv = initialEnv
   let m = fm $ toList $ optsFiles $ hhOpts
-  let hhEnv = buildEnv hhOpts lfmEnv tlEnv dbOpts
+  let hhEnv = buildEnv hhOpts lfmEnv dbOpts
   evalHarihara hhEnv $ bracketTagLib $ do
     when (dbFresh dbOpts) $ makeFreshDB $ dbPath dbOpts
     m
@@ -62,10 +59,6 @@ bracketTagLib :: Harihara a -> Harihara a
 bracketTagLib m = do
   logInfo "Running Harihara..."
   a <- m
-  --fs <- taglib openFilePtrs
-  --let n = length fs
-  --logInfo $ "Closing " ++ show n ++ " TagLib file" ++ (if n /= 1 then "s" else "")
-  --io (mapM_ cleanupFile fs >> freeTagLibStrings)
   logInfo "Harihara finished"
   return a
 
@@ -90,7 +83,7 @@ makeFreshDB fp = do
   logInfo "Removing existing DB"
   io $ removeIfExists fp
   logInfo "Making fresh DB"
-  merr <- withDB fp setupTable
+  merr <- withDB fp setupTrackTable
   case merr of
     Nothing  -> logInfo "Done"
     Just err -> do

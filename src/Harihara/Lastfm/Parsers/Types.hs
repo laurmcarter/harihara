@@ -5,10 +5,12 @@
 module Harihara.Lastfm.Parsers.Types where
 
 import Data.Aeson.Types
+import Data.Time.Calendar
 
 import Control.Applicative
 import Control.Monad
-import Data.Text
+import Data.Char
+import Data.Text as T hiding (map, unwords)
 
 import Harihara.Lastfm.Parsers.Extras
 
@@ -18,7 +20,7 @@ type AlbumName = Text
 type URL = Text
 type MBID = Text
 type Match = Double
-type ReleaseDate = Text
+type ReleaseDate = Day
 type Rank = Int
 type Duration = Int
 
@@ -91,7 +93,7 @@ instance FromJSON AlbumInfo where
     r .:  "mbid"             <*>
     r .:  "url"              <*>
     r .:  "releasedate"      <*>
-    r .:: ("images","image") <*>
+    r .:  "image"            <*>
     r .:: ("toptags","tag")  <*>
     r .:: ("tracks","track")
   parseJSON _ = mzero
@@ -100,7 +102,7 @@ data AlbumInfoTrack = AlbumInfoTrack
   { albumInfoTrackName     :: Name
   , albumInfoTrackRank     :: Rank
   , albumInfoTrackDuration :: Duration
-  , albumInfoTrackArtist   :: ArtistName
+  , albumInfoTrackArtist   :: AlbumInfoTrackArtist
   } deriving (Show)
 
 instance HasName AlbumInfoTrack where
@@ -112,16 +114,39 @@ rank = albumInfoTrackRank
 duration :: AlbumInfoTrack -> Duration
 duration = albumInfoTrackDuration
 
-instance HasArtist AlbumInfoTrack Text where
+instance HasArtist AlbumInfoTrack AlbumInfoTrackArtist where
   artist = albumInfoTrackArtist
 
 instance FromJSON AlbumInfoTrack where
   parseJSON (Object r) =
     AlbumInfoTrack   <$>
     r .:  "name"     <*>
-    r @@  "rank"     <*>
+    r @@# "rank"     <*>
     r .:# "duration" <*>
     r .:  "artist"
+  parseJSON _ = mzero
+
+data AlbumInfoTrackArtist = AlbumInfoTrackArtist
+  { albumInfoTrackArtistName :: Name
+  , albumInfoTrackArtistMBID :: MBID
+  , albumInfoTrackArtistURL  :: URL
+  } deriving (Show)
+
+instance HasName AlbumInfoTrackArtist where
+  name = albumInfoTrackArtistName
+
+instance HasMBID AlbumInfoTrackArtist where
+  mbid = albumInfoTrackArtistMBID
+
+instance HasURL AlbumInfoTrackArtist where
+  url = albumInfoTrackArtistURL
+
+instance FromJSON AlbumInfoTrackArtist where
+  parseJSON (Object r) =
+    AlbumInfoTrackArtist <$>
+    r .:  "name"         <*>
+    r .:  "mbid"         <*>
+    r .:  "url"
   parseJSON _ = mzero
 
 --------
@@ -185,7 +210,7 @@ instance FromJSON ArtistInfoArtist where
 --------
 
 data TrackInfo = TrackInfo
-    { trackInfoName    :: Text
+    { trackInfoName    :: Name
     , trackInfoMBID    :: MBID
     , trackInfoURL     :: URL
     , trackInfoArtist  :: TrackInfoArtist
@@ -366,7 +391,7 @@ instance FromJSON TrackSearch where
 -- GetSimilar {{{
 
 data ArtistSimilar = ArtistSimilar
-  { artistSimilarName  :: Text
+  { artistSimilarName  :: Name
   , artistSimilarMBID  :: MBID
   , artistSimilarMatch :: Match
   , artistSimilarURL   :: URL
@@ -394,7 +419,7 @@ instance FromJSON ArtistSimilar where
   parseJSON _ = mzero
 
 data TrackSimilar = TrackSimilar
-  { trackSimilarName :: Text
+  { trackSimilarName :: Name
   , trackSimilarMatch :: Match
   , trackSimilarArtist :: TrackSimilarArtist
   } deriving (Show)
@@ -417,8 +442,8 @@ instance FromJSON TrackSimilar where
   parseJSON _ = mzero
 
 data TrackSimilarArtist = TrackSimilarArtist 
-  { trackSimilarArtistName :: Text
-  , trackSimilarArtistMBID :: Text
+  { trackSimilarArtistName :: Name
+  , trackSimilarArtistMBID :: MBID
   , trackSimilarArtistURL  :: URL
   } deriving (Show)
 
@@ -444,7 +469,7 @@ instance FromJSON TrackSimilarArtist where
 -- GetCorrection {{{
 
 data ArtistCorrection = ArtistCorrection 
-  { artistCorrectionName :: Text
+  { artistCorrectionName :: Name
   , artistCorrectionMBID :: MBID
   , artistCorrectionURL  :: URL
   } deriving (Show)
@@ -467,7 +492,7 @@ instance FromJSON ArtistCorrection where
   parseJSON _ = mzero
 
 data TrackCorrection = TrackCorrection
-  { trackCorrectionName :: Text
+  { trackCorrectionName :: Name
   , trackCorrectionURL  :: URL
   , trackCorrectionArtist :: ArtistCorrection
   } deriving (Show)
@@ -513,19 +538,19 @@ instance FromJSON ImageSize where
 --------------------------------------------------------------------------------
 
 data Image = Image
-  { imageSize :: !ImageSize
-  , imageURL  :: !URL
+  { imageURL  :: !URL
+  , imageSize :: !ImageSize
   } deriving (Show)
 
 instance FromJSON Image where
   parseJSON (Object r) = 
     Image        <$>
-    r .: "size"  <*>
-    r .: "#text"
+    r .: "#text" <*>
+    r .: "size"
   parseJSON _ = mzero
 
 data Tag = Tag
-  { tagName :: !Text
+  { tagName :: !Name
   , tagURL  :: !URL
   } deriving (Show)
 
@@ -536,3 +561,28 @@ instance FromJSON Tag where
       r .: "url"
   parseJSON _ = mzero
 
+instance FromJSON Day where
+  parseJSON (String t) = case (,,) <$> year <*> month <*> day of
+    Just (yr,mn,dy) -> return $ fromGregorian yr mn dy
+    Nothing -> mzero
+    where
+    dayStr = fst $ T.break (== ',') $ T.dropWhile isSpace t
+    (d,my) = T.break isSpace dayStr
+    (m,y) = T.break isSpace $ T.drop 1 my
+    year = maybeRead $ unpack y
+    day = maybeRead  $ unpack d
+    month = case m of
+      "Jan" -> Just 1
+      "Feb" -> Just 2
+      "Mar" -> Just 3
+      "Apr" -> Just 4
+      "May" -> Just 5
+      "Jun" -> Just 6
+      "Jul" -> Just 7
+      "Aug" -> Just 8
+      "Sep" -> Just 9
+      "Oct" -> Just 10
+      "Nov" -> Just 11
+      "Dec" -> Just 12
+      _     -> Nothing
+  parseJSON _ = mzero

@@ -18,6 +18,9 @@ r .:: (as,a) = r .: as >>= (.: a) >>= oneOrMore
 (@@) :: (FromJSON a) => Object -> Text -> Parser a
 o @@ t = o .: "@attr" >>= (.: t)
 
+(@@#) :: (Read a) => Object -> Text -> Parser a
+o @@# t = o .: "@attr" >>= (.:# t)
+
 (.:#) :: (Read a) => Object -> Text -> Parser a
 o .:# t = do
   s <- o .: t

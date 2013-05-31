@@ -2,7 +2,7 @@
 
 module Harihara.DB
   ( module Harihara.DB
-  , module Harihara.DB.Schema
+  , module H
   ) where
 
 import Database.SQLite
@@ -12,9 +12,9 @@ import Text.Show.Pretty hiding (Value (..))
 import Control.Applicative
 import qualified Data.ByteString as BS
 import qualified Data.List as L
-import qualified Data.Text as T
 
-import Harihara.DB.Schema
+import Harihara.DB.Schema as H
+import Harihara.DB.Tag    as H
 import Harihara.Log
 
 -- DB Monad {{{
@@ -73,8 +73,8 @@ data DBOpts = DBOpts
 
 -- Bracketing {{{
 
-setupTable :: DB (Maybe String)
-setupTable = dbPrim $ flip defineTable songTable
+setupTrackTable :: DB (Maybe String)
+setupTrackTable = dbPrim $ flip defineTable trackTable
 
 openDB :: FilePath -> IO SQLiteHandle
 openDB = openConnection
@@ -96,26 +96,31 @@ dbPrim f = do
 
 -- DB Wrappers {{{
 
-insertSong :: SongRow -> DB ()
-insertSong s = do
+insertTrack :: DBTrack -> DB ()
+insertTrack s = do
   logInfo "Inserting track"
   logDebug $ "Track:\n" ++ ppShow s
   execParams insertCmd (toRow s)
   where
   insertCmd = unwords
     [ "INSERT INTO"
-    , "songs (title, artist, album, mbid, file)"
-    , "VALUES (:title, :artist, :album, :mbid, :file)"
+    , "tracks ( title,  artist,  album,  file,  mbid,"
+    ,   "url, tags, release, images)"
+    , "VALUES (:title, :artist, :album, :file, :mbid,"
+    ,   ":url, :tags, :release, :images)"
     ]
 
-getAllSongs :: DB [SongRow]
-getAllSongs = query "SELECT * FROM songs"
+getAllTracks :: DB [DBTrack]
+getAllTracks = query "SELECT * FROM tracks"
 
-searchByField :: String -> Value -> DB [SongRow]
-searchByField f v = searchByFields [(f,v)]
+getAllArtists :: DB [DBArtist]
+getAllArtists = query "SELECT * FROM artists"
 
-searchByFields :: [(String,Value)] -> DB [SongRow]
-searchByFields fds = queryParams ("SELECT * FROM songs WHERE " ++ fields) params
+searchByField :: String -> String -> Value -> DB [DBTrack]
+searchByField tb f v = searchByFields tb [(f,v)]
+
+searchByFields :: String -> [(String,Value)] -> DB [DBTrack]
+searchByFields tb fds = queryParams ("SELECT * FROM " ++ tb ++ " WHERE " ++ fields) params
   where
   fields = L.intercalate " and " $ map (\(f,_) -> unwords [f,"REGEXP",":"++f]) fds
   params = map (\(f,v) -> (":"++f,v)) fds
@@ -128,11 +133,11 @@ execParams :: String -> [(String,Value)] -> DB ()
 execParams stm prm = handleExec $ \conn ->
   execParamStatement_ conn stm prm
 
-query :: String -> DB [SongRow]
+query :: (Show a, IsRow a) => String -> DB [a]
 query qry = handleQuery $ \conn ->
   execStatement conn qry
 
-queryParams :: String -> [(String,Value)] -> DB [SongRow]
+queryParams :: (Show a, IsRow a) => String -> [(String,Value)] -> DB [a]
 queryParams qry prm = handleQuery $ \conn ->
   execParamStatement conn qry prm
 
@@ -145,7 +150,8 @@ handleExec f = do
       logError $ "SQLite Error: " ++ err
       return ()
 
-handleQuery :: (SQLiteHandle -> IO (Either String [[Row Value]])) -> DB [SongRow]
+handleQuery :: (Show a, IsRow a) =>
+  (SQLiteHandle -> IO (Either String [[Row Value]])) -> DB [a]
 handleQuery f = do
   addRegexp
   res <- dbPrim f
@@ -156,7 +162,7 @@ handleQuery f = do
     Right rss -> case Prelude.concat <$> mapM (mapM fromRow) rss of
       Nothing -> do
         logError "SQLite Parse Error"
-        logDebug $ "SQLite Row: " ++ ppShow rss
+        logDebug $ "SQLite Rows: " ++ ppShow rss
         return []
       Just ss -> do
         logDebug $ "SQLite Response: " ++ ppShow ss

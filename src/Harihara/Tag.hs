@@ -8,7 +8,7 @@ import Audio.TagLib
 import Control.Applicative ((<$>),(<*>))
 import qualified Data.Text as T
 
-data SongInfo =  SongInfo
+data TagTrack =  TagTrack
   { songTitle   :: !T.Text
   , songArtist  :: !T.Text
   , songAlbum   :: !T.Text
@@ -18,9 +18,9 @@ data SongInfo =  SongInfo
   , songTrack   :: !Int
   } deriving (Show)
 
-getSongInfo :: FileId -> TagLib SongInfo
-getSongInfo f =
-  SongInfo     <$>
+getTrackInfo :: FileId -> TagLib TagTrack
+getTrackInfo f =
+  TagTrack    <$>
   getTitle   f <*>
   getArtist  f <*>
   getAlbum   f <*>
