@@ -73,8 +73,9 @@ data DBOpts = DBOpts
 
 -- Bracketing {{{
 
-setupTrackTable :: DB (Maybe String)
-setupTrackTable = dbPrim $ flip defineTable trackTable
+setupDB :: DB [Maybe String]
+setupDB = dbPrim $ \conn ->
+  mapM (defineTable conn) hariharaSchema
 
 openDB :: FilePath -> IO SQLiteHandle
 openDB = openConnection

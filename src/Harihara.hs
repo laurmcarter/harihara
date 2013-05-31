@@ -83,12 +83,12 @@ makeFreshDB fp = do
   logInfo "Removing existing DB"
   io $ removeIfExists fp
   logInfo "Making fresh DB"
-  merr <- withDB fp setupTrackTable
+  merr <- sequence <$> withDB fp setupDB
   case merr of
     Nothing  -> logInfo "Done"
     Just err -> do
       logError "Couldn't make a fresh database"
-      io $ throw $ CantFreshDB err
+      io $ throw $ CantFreshDB $ unlines err
       
 
 removeIfExists :: FilePath -> IO ()
