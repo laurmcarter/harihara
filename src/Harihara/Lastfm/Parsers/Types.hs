@@ -43,8 +43,8 @@ class HasURL a where
 class HasImages a where
   images :: a -> [Image]
 
-class HasTags a where
-  tags :: a -> [Tag]
+class HasGenreTags a where
+  genreTags :: a -> [GenreTag]
 
 class HasMatch a where
   match :: a -> Match
@@ -58,7 +58,7 @@ data AlbumInfo = AlbumInfo
   , albumInfoURL      :: URL
   , albumInfoRelease  :: ReleaseDate
   , albumInfoImages   :: [Image]
-  , albumInfoTopTags  :: [Tag]
+  , albumInfoTopGenreTags  :: [GenreTag]
   , albumInfoTracks   :: [AlbumInfoTrack]
   } deriving (Show)
 
@@ -77,8 +77,8 @@ instance HasURL AlbumInfo where
 instance HasImages AlbumInfo where
   images = albumInfoImages
 
-instance HasTags AlbumInfo where
-  tags = albumInfoTopTags
+instance HasGenreTags AlbumInfo where
+  genreTags = albumInfoTopGenreTags
 
 releaseDate :: AlbumInfo -> ReleaseDate
 releaseDate = albumInfoRelease
@@ -157,7 +157,7 @@ data ArtistInfo = ArtistInfo
   , artistInfoMBID    :: MBID
   , artistInfoImages  :: [Image]
   , artistInfoSimilar :: [ArtistInfoArtist]
-  , artistInfoTags    :: [Tag]
+  , artistInfoGenreTags    :: [GenreTag]
   } deriving (Show)
 
 instance HasName ArtistInfo where
@@ -169,11 +169,11 @@ instance HasMBID ArtistInfo where
 instance HasImages ArtistInfo where
   images = artistInfoImages
 
-similarArtists :: ArtistInfo -> [ArtistInfoArtist]
-similarArtists = artistInfoSimilar
+similar :: ArtistInfo -> [ArtistInfoArtist]
+similar = artistInfoSimilar
 
-instance HasTags ArtistInfo where
-  tags = artistInfoTags
+instance HasGenreTags ArtistInfo where
+  genreTags = artistInfoGenreTags
 
 instance FromJSON ArtistInfo where
   parseJSON (Object r) =
@@ -216,7 +216,7 @@ data TrackInfo = TrackInfo
     , trackInfoURL     :: URL
     , trackInfoArtist  :: TrackInfoArtist
     , trackInfoAlbum   :: Maybe TrackInfoAlbum
-    , trackInfoTopTags :: [Tag]
+    , trackInfoTopGenreTags :: [GenreTag]
     } deriving (Show)
 
 instance HasName TrackInfo where
@@ -234,8 +234,8 @@ instance HasArtist TrackInfo TrackInfoArtist where
 instance HasAlbum TrackInfo (Maybe TrackInfoAlbum) where
   album = trackInfoAlbum
 
-instance HasTags TrackInfo where
-  tags = trackInfoTopTags
+instance HasGenreTags TrackInfo where
+  genreTags = trackInfoTopGenreTags
 
 instance FromJSON TrackInfo where
   parseJSON (Object r) =
@@ -550,14 +550,14 @@ instance FromJSON Image where
     r .: "size"
   parseJSON _ = mzero
 
-data Tag = Tag
-  { tagName :: !Name
-  , tagURL  :: !URL
+data GenreTag = GenreTag
+  { genreTagName :: !Name
+  , genreTagURL  :: !URL
   } deriving (Show)
 
-instance FromJSON Tag where
+instance FromJSON GenreTag where
   parseJSON (Object r) =
-      Tag   <$>
+      GenreTag   <$>
       r .: "name" <*>
       r .: "url"
   parseJSON _ = mzero

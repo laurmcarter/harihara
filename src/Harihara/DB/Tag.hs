@@ -11,7 +11,7 @@ dbTrack :: Text -> Text -> Text -> FilePath
 dbTrack tl art alb f mal mtr = DBTrack tl art alb f
   (mbid <$> mtr)
   (url <$> mtr)
-  (map tagName <$> tags <$> mtr)
+  (map genreTagName <$> genreTags <$> mtr)
   (releaseDate <$> mal)
   (map imageURL <$> images <$> mal)
 

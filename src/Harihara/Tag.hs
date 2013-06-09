@@ -1,31 +1,33 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
 
-module Harihara.Tag where
-
-import Audio.TagLib
+module Harihara.Tag
+  ( module Harihara.Tag
+  , module H
+  ) where
 
 import Control.Applicative ((<$>),(<*>))
-import qualified Data.Text as T
+import Data.Text
+
+import Harihara.Tag.Types as H
+import Harihara.Tag.Operations as H
 
 data TagTrack =  TagTrack
-  { songTitle   :: !T.Text
-  , songArtist  :: !T.Text
-  , songAlbum   :: !T.Text
-  , songComment :: !T.Text
-  , songGenre   :: !T.Text
+  { songTitle   :: !Text
+  , songArtist  :: !Text
+  , songAlbum   :: !Text
+  , songComment :: !Text
+  , songGenre   :: !Text
   , songYear    :: !Int
   , songTrack   :: !Int
   } deriving (Show)
 
-getTrackInfo :: FileId -> TagLib TagTrack
+getTrackInfo :: FileId -> Tag TagTrack
 getTrackInfo f =
-  TagTrack    <$>
+  TagTrack     <$>
   getTitle   f <*>
   getArtist  f <*>
   getAlbum   f <*>
   getComment f <*>
   getGenre   f <*>
   getYear    f <*>
-  getTrack   f
+  getTrack   f 
 

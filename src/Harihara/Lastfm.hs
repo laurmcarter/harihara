@@ -17,14 +17,13 @@ import Harihara.Lastfm.Requests as H
 import Harihara.Lastfm.Parsers  as H
 import Harihara.Lastfm.Types    as H
 import Harihara.Log
-import Harihara.Monad
 import Harihara.Utils
 
 -- | Retrieve a list of artists similar to one given.
-lastfm_similarArtists :: Text -> Harihara (Text,[ArtistSimilar])
-lastfm_similarArtists ar = do
-  logInfo $ "Lastfm: Getting artists similar to " ++ ppShow ar
-  cor <- lastfm_getCorrection_artist ar
+similarArtists :: Text -> Lastfm (Text,[ArtistSimilar])
+similarArtists ar = do
+  logInfo $ "Getting artists similar to " ++ ppShow ar
+  cor <- getCorrection_artist ar
   let ar' = maybe (capitalize ar) artistCorrectionName cor
-  (ar',) <$> lastfm_getSimilar_artist ar'
+  (ar',) <$> getSimilar_artist ar'
 

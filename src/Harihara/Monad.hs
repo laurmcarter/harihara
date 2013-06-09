@@ -1,20 +1,22 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module Harihara.Monad where
 
 import MonadLib
 
-import qualified Audio.TagLib as TL
-import Audio.TagLib.Internal hiding (io)
+import qualified Audio.TagLib.Internal as TL (TagLibException(..))
 import Text.Show.Pretty (ppShow)
 
 import Control.Applicative
 import Control.Exception
+import Data.Typeable (Typeable())
 
-import Harihara.DB hiding (io)
-import Harihara.Lastfm.Types
+import Harihara.DB     hiding (io)
+import Harihara.Lastfm hiding (io, getLastfmEnv)
+import Harihara.Tag    hiding (io, getTagEnv)
 import Harihara.Log
 import Harihara.Options
 
@@ -45,7 +47,8 @@ instance BaseM Harihara IO where
 
 instance MonadLog Harihara where
   getLogLevel = fromHHEnv logLevel
-  writeLog ll = io . putStrLn . (renderLevel ll ++)
+  writeLog = io . putStrLn
+  header = return "Main"
 
 catchHarihara :: (Exception e) => Harihara a -> (e -> Harihara a) -> Harihara a
 m `catchHarihara` f = do
@@ -57,11 +60,24 @@ m `catchHarihara` f = do
 
 -- }}}
 
+-- Harihara Exceptions {{{
+
+data HariharaException
+  = Usage String
+  | CantFreshDB String
+  | MissingLastfmConfig
+  deriving (Show,Typeable)
+
+instance Exception HariharaException
+
+-- }}}
+
 -- HariharaEnv {{{
 
 data HariharaEnv = HariharaEnv
   { logLevel     :: LogLevel
-  , lastfmEnv    :: LastfmEnv
+  , lastfmEnv    :: Maybe LastfmEnv
+  , tagEnv       :: TagEnv
   , databaseOpts :: DBOpts
   }
 
@@ -69,12 +85,15 @@ onLogLevel :: (LogLevel -> LogLevel) -> HariharaEnv -> HariharaEnv
 onLogLevel f e = e { logLevel = f $ logLevel e }
 
 onLastfmEnv :: (LastfmEnv -> LastfmEnv) -> HariharaEnv -> HariharaEnv
-onLastfmEnv f e = e { lastfmEnv = f $ lastfmEnv e }
+onLastfmEnv f e = e { lastfmEnv = f <$> lastfmEnv e }
+
+onTagEnv :: (TagEnv -> TagEnv) -> HariharaEnv -> HariharaEnv
+onTagEnv f e = e { tagEnv = f $ tagEnv e }
 
 onDatabaseOpts :: (DBOpts -> DBOpts) -> HariharaEnv -> HariharaEnv
 onDatabaseOpts f e = e { databaseOpts = f $ databaseOpts e }
-
-buildEnv :: HariharaOptions -> LastfmEnv -> DBOpts -> HariharaEnv
+ 
+buildEnv :: HariharaOptions -> Maybe LastfmEnv -> TagEnv -> DBOpts -> HariharaEnv
 buildEnv = HariharaEnv . optsLogLevel
 
 -- }}}
@@ -90,14 +109,20 @@ fromHHEnv = Harihara . gets
 modifyHHEnv :: (HariharaEnv -> HariharaEnv) -> Harihara ()
 modifyHHEnv = Harihara . modify
 
-getLastfmEnv :: Harihara LastfmEnv
+getLastfmEnv :: Harihara (Maybe LastfmEnv)
 getLastfmEnv = fromHHEnv lastfmEnv
-
-getDatabaseOpts :: Harihara DBOpts
-getDatabaseOpts = fromHHEnv databaseOpts
 
 modifyLastfmEnv :: (LastfmEnv -> LastfmEnv) -> Harihara ()
 modifyLastfmEnv = modifyHHEnv . onLastfmEnv
+
+getTagEnv :: Harihara TagEnv
+getTagEnv = fromHHEnv tagEnv
+
+modifyTagEnv :: (TagEnv -> TagEnv) -> Harihara ()
+modifyTagEnv = modifyHHEnv . onTagEnv
+
+getDatabaseOpts :: Harihara DBOpts
+getDatabaseOpts = fromHHEnv databaseOpts
 
 gets :: (StateM m s) => (s -> a) -> m a
 gets f = do
@@ -116,23 +141,37 @@ evalStateT s m = do
 
 -- Tag {{{
 
-taglib :: FilePath -> (FileId -> TL.TagLib a) -> Harihara a
-taglib fp f = do
-  logInfo "TagLib"
-  io $ TL.taglib (f =<< TL.openFile fp)
+tag :: FilePath -> (FileId -> Tag a) -> Harihara a
+tag fp f = do
+  logInfo "Tag"
+  tEnv <- getTagEnv
+  io $ runTag tEnv $ withFile fp f
 
 -- | Catch the TagLib exceptions associated with an
 --   incompatible or unopenable file. Re-throw any other
 --   exception encountered.
 skipIfFileBad :: Harihara () -> Harihara ()
 skipIfFileBad m = catchHarihara m $ \e -> case e of
-  InvalidFile fp -> do
+  TL.InvalidFile fp -> do
     logWarn $ "Invalid TagLib file: " ++ ppShow fp
     logWarn "Skipping."
-  UnableToOpen fp -> do
+  TL.UnableToOpen fp -> do
     logWarn $ "TagLib unable to open file: " ++ ppShow fp
     logWarn "Skipping."
   _ -> io $ throw e
+
+-- }}}
+
+-- Lastfm {{{
+
+lastfm :: Lastfm a -> Harihara a
+lastfm m = do
+  mEnv <- getLastfmEnv
+  case mEnv of
+    Nothing -> do
+      logError "Last.fm API key or Secret are missing from config"
+      io $ throw MissingLastfmConfig
+    Just env -> io $ runLastfm env m
 
 -- }}}
 

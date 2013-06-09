@@ -34,7 +34,8 @@ instance Applicative DB where
 
 instance MonadLog DB where
   getLogLevel = fromEnv dbLogLevel
-  writeLog ll = io . putStrLn . (renderLevel ll ++)
+  writeLog = io . putStrLn
+  header = return "DB"
 
 runDB :: DBEnv -> DB a -> IO a
 runDB env m = runReaderT env $ unDB m

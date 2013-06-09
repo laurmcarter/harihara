@@ -30,7 +30,7 @@ instance GetInfo AlbumInfo where
 instance GetInfo ArtistInfo where
   parse_getInfo = generic_parse_getInfo "artist"
 
-instance GetInfo Tag where
+instance GetInfo GenreTag where
   parse_getInfo = generic_parse_getInfo "tag"
 
 instance GetInfo TrackInfo where
@@ -55,7 +55,7 @@ instance Search AlbumSearch where
 instance Search ArtistSearch where
   parse_search = generic_parse_search "artist"
 
-instance Search Tag where
+instance Search GenreTag where
   parse_search = generic_parse_search "tag"
 
 instance Search TrackSearch where
@@ -91,6 +91,6 @@ class (Show a, FromJSON a) => GetSimilar a where
 instance GetSimilar ArtistSimilar where
   parse_getSimilar = generic_parse_getSimilar "artist"
 
-instance GetSimilar Tag where
+instance GetSimilar GenreTag where
   parse_getSimilar = generic_parse_getSimilar "tag"
 

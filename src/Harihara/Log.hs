@@ -36,7 +36,8 @@ data LogLevel
 
 class (Functor m, Monad m) => MonadLog m where
   getLogLevel :: m LogLevel
-  writeLog    :: LogLevel -> String -> m ()
+  writeLog    :: String -> m ()
+  header      :: m String
 
 logError :: (MonadLog m) => String -> m ()
 logError  = filterLog LogError
@@ -53,15 +54,23 @@ logDebug  = filterLog LogDebug
 filterLog :: (MonadLog m) => LogLevel -> String -> m ()
 filterLog lvl msg = do
   shouldLog <- (lvl <=) <$> getLogLevel
-  when shouldLog $ writeLog lvl msg
+  hdr <- header
+  let fullMsg = unwords
+        [ bracketMsgs [ renderLevel lvl , "|" , hdr ]
+        , msg
+        ]
+  when shouldLog $ writeLog fullMsg
+
+bracketMsgs :: [String] -> String
+bracketMsgs = ("[ " ++) . (++ " ]") . unwords
 
 renderLevel :: LogLevel -> String
 renderLevel ll = case ll of
-  LogSilent -> "[ \"Silent\" ] "
-  LogError  -> "[ Error ] "
-  LogWarn   -> "[ Warn  ] "
-  LogInfo   -> "[ Info  ] "
-  LogDebug  -> "[ Debug ] "
+  LogSilent -> "\"Silent\""
+  LogError  -> "Error"
+  LogWarn   -> "Warn "
+  LogInfo   -> "Info "
+  LogDebug  -> "Debug"
 
 -- }}}
 

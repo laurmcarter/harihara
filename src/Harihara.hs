@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Harihara
@@ -6,7 +5,7 @@ module Harihara
   , module H
   ) where
 
-import Data.Configurator
+import Data.Configurator as Cfg
 import Data.Configurator.Types
 import Network.Lastfm
 import Text.Show.Pretty
@@ -14,31 +13,26 @@ import Text.Show.Pretty
 import Control.Exception
 import Control.Monad (when)
 import Data.Set (toList)
-import Data.Typeable (Typeable())
 import System.Environment
 import System.Directory
 import System.IO.Error
 
-import Harihara.DB      as H hiding (io)
-import Harihara.Lastfm  as H
 import Harihara.Log     as H            
 import Harihara.Monad   as H            
 import Harihara.Options as H            
-import Harihara.Tag     as H            
 import Harihara.Utils   as H            
 
-data HariharaException
-  = Usage String
-  | CantFreshDB String
-  deriving (Show,Typeable)
-
-instance Exception HariharaException
+import Harihara.DB      hiding (io)
+import Harihara.Lastfm  hiding (io)
+import Harihara.Tag     hiding (io)
 
 {-
 harihara is the exposed interace to the Harihara Monad.
 It uses the intermediary HHBoot Monad so that it can start
 logging as soon as the command line arguments are parsed.
 -}
+
+-- Running Harihara {{{
 
 -- | Load configuration and options, run a @Harihara@ computation
 --   expecting a list of files.
@@ -47,14 +41,43 @@ harihara cfs fm = do
   mOpts <- parseOptions <$> getArgs
   hhOpts <- either (throw . Usage) return mOpts
   mainCfg <- load cfs
-  lfmEnv <- mkLastfmEnv mainCfg
+  lfmEnv <- mkLastfmEnv mainCfg hhOpts
+  tgEnv  <- mkTagEnv mainCfg hhOpts
   dbOpts <- mkDBOpts mainCfg hhOpts
   let fs = toList $ optsFiles hhOpts
-  let hhEnv = buildEnv hhOpts lfmEnv dbOpts
+  let hhEnv = buildEnv hhOpts lfmEnv tgEnv dbOpts
   evalHarihara hhEnv $ bracketTagLib $ do
     logDebug $ "Harihara Options:\n" ++ ppShow hhOpts
     when (dbFresh dbOpts) $ makeFreshDB $ dbPath dbOpts
     fm fs
+
+-- }}}
+
+-- Configuration Aggregation {{{
+
+type ConfigFile = Worth FilePath
+
+mkLastfmEnv :: Config -> HariharaOptions -> IO (Maybe LastfmEnv)
+mkLastfmEnv cfg opts = do
+  mKey  <- Cfg.lookup cfg "api-key"
+  mSign <- Cfg.lookup cfg "secret"
+  return $ LastfmEnv           <$>
+    (pure $ optsLogLevel opts) <*>
+    (apiKey <$> mKey)          <*>
+    (sign <$> Secret <$> mSign)
+
+mkTagEnv :: Config -> HariharaOptions -> IO TagEnv
+mkTagEnv _ opts = TagEnv   <$> 
+  (pure $ optsLogLevel opts)
+
+mkDBOpts :: Config -> HariharaOptions -> IO DBOpts
+mkDBOpts cfg opts = DBOpts                      <$>
+  lookupDefault (optsDBPath opts) cfg "db-path" <*>
+  (pure $ optsDBFresh opts)
+
+-- }}}
+
+-- Helpers {{{
 
 -- | Clean up all remaining TagLib resources, both files and strings.
 bracketTagLib :: Harihara a -> Harihara a
@@ -63,22 +86,6 @@ bracketTagLib m = do
   a <- m
   logInfo "Harihara finished"
   return a
-
--- Configuration Aggregation {{{
-
-type ConfigFile = Worth FilePath
-
-mkLastfmEnv :: Config -> IO LastfmEnv
-mkLastfmEnv c = LastfmEnv          <$>
-  (apiKey <$> require c "api-key") <*>
-  (sign <$> Secret <$> require c "secret")
-
-mkDBOpts :: Config -> HariharaOptions -> IO DBOpts
-mkDBOpts cfg opts = DBOpts                      <$>
-  lookupDefault (optsDBPath opts) cfg "db-path" <*>
-  (pure $ optsDBFresh opts)
-
--- }}}
 
 makeFreshDB :: FilePath -> Harihara ()
 makeFreshDB fp = do
@@ -91,7 +98,6 @@ makeFreshDB fp = do
     Just err -> do
       logError "Couldn't make a fresh database"
       io $ throw $ CantFreshDB $ unlines err
-      
 
 removeIfExists :: FilePath -> IO ()
 removeIfExists fileName = removeFile fileName `catch` handleExists
@@ -99,3 +105,5 @@ removeIfExists fileName = removeFile fileName `catch` handleExists
   handleExists e
     | isDoesNotExistError e = return ()
     | otherwise = throwIO e
+
+-- }}}
