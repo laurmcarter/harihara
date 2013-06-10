@@ -1,8 +1,16 @@
 
-module Harihara.Utils where
+module Harihara.Utils
+  ( module Harihara.Utils
+  , Text
+  ) where
 
-import Data.Char
-import qualified Data.Text as T
+import Text.Show.Pretty
+
+import Data.Char as C
+import Data.Text as T
+
+pretty :: (Show a) => a -> Text
+pretty = pack . ppShow
 
 whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
 whenJust ma f = maybe (return ()) f ma
@@ -13,15 +21,15 @@ withEither m fa fb = either fa fb m
 withMaybe :: Maybe a -> b -> (a -> b) -> b
 withMaybe m d f = maybe d f m
 
-capitalize :: T.Text -> T.Text
+capitalize :: Text -> Text
 capitalize = T.tail . cap
   where
   cap = flip T.scanl ' ' $ \c1 c2 -> 
     if isSpace c1
-    then toUpper c2
+    then C.toUpper c2
     else c2
 
-spaceToUnderscore :: T.Text -> T.Text
+spaceToUnderscore :: Text -> Text
 spaceToUnderscore = T.map $ \c ->
   if isSpace c
   then '_'

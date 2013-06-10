@@ -38,8 +38,7 @@ logging as soon as the command line arguments are parsed.
 --   expecting a list of files.
 harihara :: [ConfigFile] -> ([FilePath] -> Harihara a) -> IO a
 harihara cfs fm = do
-  mOpts <- parseOptions <$> getArgs
-  hhOpts <- either (throw . Usage) return mOpts
+  hhOpts <- parseOptions =<< getArgs
   mainCfg <- load cfs
   lfmEnv <- mkLastfmEnv mainCfg hhOpts
   tgEnv  <- mkTagEnv mainCfg hhOpts
@@ -47,7 +46,7 @@ harihara cfs fm = do
   let fs = toList $ optsFiles hhOpts
   let hhEnv = buildEnv hhOpts lfmEnv tgEnv dbOpts
   evalHarihara hhEnv $ bracketTagLib $ do
-    logDebug $ "Harihara Options:\n" ++ ppShow hhOpts
+    logDebugData "Harihara Options" $ ppShow hhOpts
     when (dbFresh dbOpts) $ makeFreshDB $ dbPath dbOpts
     fm fs
 
@@ -97,7 +96,7 @@ makeFreshDB fp = do
     Nothing  -> logInfo "Done"
     Just err -> do
       logError "Couldn't make a fresh database"
-      io $ throw $ CantFreshDB $ unlines err
+      io $ throwIO $ CantFreshDB $ unlines err
 
 removeIfExists :: FilePath -> IO ()
 removeIfExists fileName = removeFile fileName `catch` handleExists

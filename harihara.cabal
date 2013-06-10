@@ -41,10 +41,7 @@ library
                        transformers  >= 0.3  && < 0.4  ,
                        liblastfm     >= 0.1  && < 0.2
 
-  other-extensions:    OverloadedStrings,
-                       DataKinds,
-                       FlexibleInstances,
-                       TemplateHaskell
+  other-extensions:    OverloadedStrings
                        
   exposed-modules:     Harihara
                        Harihara.DB

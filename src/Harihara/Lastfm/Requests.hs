@@ -33,42 +33,42 @@ sendRequest prs req = do
   case mjs of
     Nothing -> do
       logError "No response"
-      io $ throw NoResponse
+      io $ throwIO NoResponse
     Just js -> do
       logInfo "Received response"
       let jsonStr = C8.unpack $ encodePretty js
-      logDebug $ "Lastfm Response:\n" ++ jsonStr
+      logDebugData "Lastfm Response" $ jsonStr
       logInfo "Parsing Response"
       case parseEither prs js of
         Left err -> do
-          logError $  "No Parse: " ++ err
-          io $ throw $ ParseError err
+          logErrorData "No Parse" err
+          io $ throwIO $ JSONParseError err
         Right res -> do
-          logDebug $ "Parse Successful:\n" ++ ppShow res
+          logDebugData "Parse Successful" $ ppShow res
           return res
 
 -- | generic function for Last.fm's *.search call.
 search :: (Search a) => KeyedRequest -> Lastfm [a]
 search req = do
-  logInfo "Request type 'search'"
+  logInfo "Search"
   sendRequest parse_search req
 
 -- | generic function for Last.fm's *.getInfo call.
 getInfo :: (GetInfo a) => KeyedRequest -> Lastfm a
 getInfo req = do
-  logInfo "Request type 'getInfo'"
+  logInfo "GetInfo"
   sendRequest parse_getInfo req
 
 -- | generic function for Last.fm's *.getCorrection call.
 getCorrection :: (GetCorrection a) => KeyedRequest -> Lastfm (Maybe a)
 getCorrection req = do
-  logInfo "Request type 'getCorrection'"
+  logInfo "GetCorrection"
   sendRequest parse_getCorrection req
 
 -- | generic function for Last.fm's *.getSimilar call.
 getSimilar :: (GetSimilar a) => KeyedRequest -> Lastfm [a]
 getSimilar req = do
-  logInfo "Request type 'getSimilar'"
+  logInfo "GetSimilar"
   sendRequest parse_getSimilar req
 
 -- }}}
@@ -77,22 +77,22 @@ getSimilar req = do
 
 search_album    :: Text -> Lastfm [AlbumSearch]
 search_album  al = do
-  logDebug $ "Album " ++ ppShow al
+  logDebugData "Album" $ ppShow al
   search $ Album.search  <*> FM.album al
 
 search_artist   :: Text -> Lastfm [ArtistSearch]
 search_artist ar = do
-  logDebug $ "Artist " ++ ppShow ar
+  logDebugData "Artist" $ ppShow ar
   search $ Artist.search <*> FM.artist ar
 
 search_tag      :: Text -> Lastfm [GenreTag]
 search_tag    tg = do
-  logDebug $ "Tag " ++ ppShow tg
+  logDebugData "Tag" $ ppShow tg
   search $ Tag.search    <*> FM.tag tg
 
 search_track    :: Text -> Lastfm [TrackSearch]
 search_track  tr = do
-  logDebug $ "Track " ++ ppShow tr
+  logDebugData "Track" $ ppShow tr
   search $ Track.search  <*> FM.track tr
 
 -- }}}
@@ -101,38 +101,40 @@ search_track  tr = do
 
 getInfo_artist     :: Text -> Lastfm ArtistInfo
 getInfo_artist   ar = do
-  logDebug $ "Artist " ++ ppShow ar
+  logDebugData "Artist" $ ppShow ar
   getInfo $ Artist.getInfo <*> FM.artist ar
 
 getInfo_tag        :: Text -> Lastfm GenreTag
 getInfo_tag      tg = do
-  logDebug $ "Tag " ++ ppShow tg
+  logDebugData "Tag" $ ppShow tg
   getInfo $ Tag.getInfo    <*> FM.tag tg
 
 getInfo_artist_album :: Text -> Text -> Lastfm AlbumInfo
 getInfo_artist_album ar al = do
-  logDebug $ "Artist " ++ ppShow ar ++ ", Album " ++ ppShow al
+  logDebugData "Artist" $ ppShow ar
+  logDebugData "Album"  $ ppShow al
   getInfo $ Album.getInfo  <*> FM.artist ar <*> FM.album al
 
 getInfo_artist_track :: Text -> Text -> Lastfm TrackInfo
 getInfo_artist_track ar tr = do
-  logDebug $ "Artist " ++ ppShow ar ++ ", Track " ++ ppShow tr
+  logDebugData "Artist" $ ppShow ar
+  logDebugData "Track"  $ ppShow tr
   getInfo $ Track.getInfo  <*> FM.artist ar <*> FM.track tr
 
 
 getInfo_album_mbid    :: Text -> Lastfm AlbumInfo
 getInfo_album_mbid  mb = do
-  logDebug $ "MBID " ++ ppShow mb
+  logDebugData "MBID" $ ppShow mb
   getInfo $ Album.getInfo  <*> FM.mbid mb
 
 getInfo_artist_mbid   :: Text -> Lastfm ArtistInfo
 getInfo_artist_mbid mb = do
-  logDebug $ "MBID " ++ ppShow mb
+  logDebugData "MBID" $ ppShow mb
   getInfo $ Artist.getInfo <*> FM.mbid mb
 
 getInfo_track_mbid    :: Text -> Lastfm TrackInfo
 getInfo_track_mbid  mb = do
-  logDebug $ "MBID " ++ ppShow mb
+  logDebugData "MBID" $ ppShow mb
   getInfo $ Track.getInfo  <*> FM.mbid mb
 
 -- tag_getInfo_mbid does not exist, as per liblastfm
@@ -143,7 +145,7 @@ getInfo_track_mbid  mb = do
 
 getCorrection_artist :: Text -> Lastfm (Maybe ArtistCorrection)
 getCorrection_artist ar = do
-  logDebug $ "Artist " ++ ppShow ar
+  logDebugData "Artist" $ ppShow ar
   getCorrection $ Artist.getCorrection <*> FM.artist ar
 
 -- track_getCorrection does not exist, b/c last.FM responses seem to be useless
@@ -154,12 +156,12 @@ getCorrection_artist ar = do
 
 getSimilar_artist   :: Text -> Lastfm [ArtistSimilar]
 getSimilar_artist ar = do
-  logDebug $ "Artist " ++ ppShow ar
+  logDebugData "Artist" $ ppShow ar
   getSimilar $ Artist.getSimilar <*> FM.artist ar
 
 getSimilar_tag      :: Text -> Lastfm [GenreTag]
 getSimilar_tag    tg = do
-  logDebug $ "Tag " ++ ppShow tg
+  logDebugData "Tag" $ ppShow tg
   getSimilar $ Tag.getSimilar    <*> FM.tag tg
 
 -- }}}

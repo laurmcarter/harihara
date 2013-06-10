@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Harihara.Log where
@@ -5,14 +6,23 @@ module Harihara.Log where
 import Control.Applicative ((<$>))
 import Control.Exception
 import Control.Monad (when)
+import Data.List as L
+import Data.Text as T
 import Data.Typeable
 
 -- Exceptions {{{
 
 data LastfmException
   = NoResponse
-  | ParseError String
-  deriving (Show, Typeable)
+  | JSONParseError String
+  deriving (Typeable)
+
+instance Show LastfmException where
+  show e = case e of
+    NoResponse        ->
+      "No response from last.fm"
+    JSONParseError js ->
+      "Failed to parse last.fm's JSON response:\n" ++ show js
 
 instance Exception LastfmException
 
@@ -21,6 +31,42 @@ data TagException
   deriving (Show,Typeable)
 
 instance Exception TagException
+
+-- }}}
+
+-- Log functions {{{
+
+logError :: (MonadLog m) => Text -> m ()
+logError  = filterLog LogError
+
+logWarn  :: (MonadLog m) => Text -> m ()
+logWarn   = filterLog LogWarn
+
+logInfo  :: (MonadLog m) => Text -> m ()
+logInfo   = filterLog LogInfo
+
+logDebug :: (MonadLog m) => Text -> m ()
+logDebug  = filterLog LogDebug
+
+logErrorData :: (MonadLog m) => Text -> String -> m ()
+logErrorData msg dat = logError $ T.unlines (msg:dat')
+  where
+  dat' = indentData 2 $ T.pack dat
+
+logWarnData :: (MonadLog m) => Text -> String -> m ()
+logWarnData msg dat = logWarn $ T.unlines (msg:dat')
+  where
+  dat' = indentData 2 $ T.pack dat
+
+logInfoData :: (MonadLog m) => Text -> String -> m ()
+logInfoData msg dat = logInfo $ T.unlines (msg:dat')
+  where
+  dat' = indentData 2 $ T.pack dat
+
+logDebugData :: (MonadLog m) => Text -> String -> m ()
+logDebugData msg dat = logDebug $ T.unlines (msg:dat')
+  where
+  dat' = indentData 2 $ T.pack dat
 
 -- }}}
 
@@ -36,40 +82,31 @@ data LogLevel
 
 class (Functor m, Monad m) => MonadLog m where
   getLogLevel :: m LogLevel
-  writeLog    :: String -> m ()
-  header      :: m String
+  writeLog    :: Text -> m ()
+  header      :: m Text
 
-logError :: (MonadLog m) => String -> m ()
-logError  = filterLog LogError
+indentData :: Int -> Text -> [Text]
+indentData n = L.map (T.replicate n " " `T.append`) . T.lines
 
-logWarn  :: (MonadLog m) => String -> m ()
-logWarn   = filterLog LogWarn
-
-logInfo  :: (MonadLog m) => String -> m ()
-logInfo   = filterLog LogInfo
-
-logDebug :: (MonadLog m) => String -> m ()
-logDebug  = filterLog LogDebug
-
-filterLog :: (MonadLog m) => LogLevel -> String -> m ()
+filterLog :: (MonadLog m) => LogLevel -> Text -> m ()
 filterLog lvl msg = do
   shouldLog <- (lvl <=) <$> getLogLevel
   hdr <- header
-  let fullMsg = unwords
-        [ bracketMsgs [ renderLevel lvl , "|" , hdr ]
-        , msg
+  let fullMsg = T.concat
+        [ justifyLeft 20 ' ' (bracketMsgs [ renderLevel lvl , "|" , hdr ])
+        ,msg
         ]
   when shouldLog $ writeLog fullMsg
 
-bracketMsgs :: [String] -> String
-bracketMsgs = ("[ " ++) . (++ " ]") . unwords
+bracketMsgs :: [Text] -> Text
+bracketMsgs = ("[ " `append`) . (`append` " ]") . T.unwords
 
-renderLevel :: LogLevel -> String
+renderLevel :: LogLevel -> Text
 renderLevel ll = case ll of
   LogSilent -> "\"Silent\""
   LogError  -> "Error"
-  LogWarn   -> "Warn "
-  LogInfo   -> "Info "
+  LogWarn   -> "Warn"
+  LogInfo   -> "Info"
   LogDebug  -> "Debug"
 
 -- }}}

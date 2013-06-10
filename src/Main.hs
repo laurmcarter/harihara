@@ -51,5 +51,5 @@ main = harihara configFiles $ \fs -> do
     s <- db $ searchByFields "tracks" [("artist",fromString "Art")]
 
     -- Print the results
-    io $ putStrLn $ ppShow $ map dbTrackTitle s
+    logInfoData "Results" $ ppShow (map dbTrackArtist s)
 

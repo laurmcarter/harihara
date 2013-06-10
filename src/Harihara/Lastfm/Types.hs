@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Harihara.Lastfm.Types where
@@ -8,6 +9,7 @@ import Harihara.Log
 import Network.Lastfm
 
 import Control.Applicative ()
+import qualified Data.Text.IO as T
 
 -- Lastfm Monad {{{
 
@@ -16,7 +18,7 @@ newtype Lastfm a = Lastfm { unLastfm :: ReaderT LastfmEnv IO a }
 
 instance MonadLog Lastfm where
   getLogLevel = getsLastfmEnv lfmLogLevel
-  writeLog = io . putStrLn
+  writeLog = io . T.putStrLn
   header = return "Lastfm"
 
 runLastfm :: LastfmEnv -> Lastfm a -> IO a

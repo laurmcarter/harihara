@@ -12,6 +12,7 @@ import Text.Show.Pretty hiding (Value (..))
 import Control.Applicative
 import qualified Data.ByteString as BS
 import qualified Data.List as L
+import qualified Data.Text.IO as T
 
 import Harihara.DB.Schema as H
 import Harihara.DB.Tag    as H
@@ -34,7 +35,7 @@ instance Applicative DB where
 
 instance MonadLog DB where
   getLogLevel = fromEnv dbLogLevel
-  writeLog = io . putStrLn
+  writeLog = io . T.putStrLn
   header = return "DB"
 
 runDB :: DBEnv -> DB a -> IO a
@@ -101,7 +102,7 @@ dbPrim f = do
 insertTrack :: DBTrack -> DB ()
 insertTrack s = do
   logInfo "Inserting track"
-  logDebug $ "Track:\n" ++ ppShow s
+  logDebugData "Track" $ ppShow s
   execParams insertCmd (toRow s)
   where
   insertCmd = unwords
@@ -149,7 +150,7 @@ handleExec f = do
   case res of
     Nothing  -> return ()
     Just err -> do
-      logError $ "SQLite Error: " ++ err
+      logErrorData "SQLite Error" err
       return ()
 
 handleQuery :: (Show a, IsRow a) =>
@@ -159,28 +160,16 @@ handleQuery f = do
   res <- dbPrim f
   case res of
     Left err -> do
-      logError $ "SQLite Error: " ++ err
+      logErrorData "SQLite Error" err
       return []
     Right rss -> case Prelude.concat <$> mapM (mapM fromRow) rss of
       Nothing -> do
         logError "SQLite Parse Error"
-        logDebug $ "SQLite Rows: " ++ ppShow rss
+        logDebugData "SQLite Rows" $ ppShow rss
         return []
       Just ss -> do
-        logDebug $ "SQLite Response: " ++ ppShow ss
+        logDebugData "SQLite Response" $ ppShow ss
         return ss
-
-{-
-execStatement :: SQLiteResult a => SQLiteHandle -> String -> IO (Either String [[Row a]])
-
-execStatement_ :: SQLiteHandle -> String -> IO (Maybe String)
-
-execParamStatement :: SQLiteResult a => SQLiteHandle -> String -> [(String, Value)] -> IO (Either String [[Row a]])
-
-execParamStatement_ :: SQLiteHandle -> String -> [(String, Value)] -> IO (Maybe String)
-
-insertRow :: SQLiteHandle -> TableName -> Row String -> IO (Maybe String)
--}
 
 -- }}}
 

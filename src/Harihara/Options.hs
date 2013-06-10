@@ -1,15 +1,50 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module Harihara.Options 
   ( parseOptions
-  , parseOptionsWith
   , HariharaOptions (..)
+  , HariharaException (..)
   ) where
 
-import Data.List (isPrefixOf)
+import Control.Exception
+import Data.Foldable (foldrM)
 import qualified Data.Set as S
+import Data.Typeable (Typeable())
+
+import System.Console.GetOpt
+import System.Directory
+import System.FilePath.Posix
+import System.Exit
 
 import Harihara.Log
+
+-- Harihara Exceptions {{{
+
+data HariharaException
+  = CantFreshDB String
+  | FileDoesNotExist String
+  | InvalidPath String
+  | NoFlagParse String String
+  | MissingLastfmConfig
+  deriving (Typeable)
+
+instance Show HariharaException where
+  show e = case e of
+    CantFreshDB fp       ->
+      "Can't make a fresh database with path " ++ show fp
+    FileDoesNotExist fp  -> 
+      "File does not exist: " ++ show fp
+    InvalidPath fp       -> 
+      "Not a valid filepath: " ++ show fp
+    NoFlagParse flag arg -> 
+      "Couldn't parse arg for flag " ++ show flag ++ ": " ++ show arg
+    MissingLastfmConfig  -> 
+      "Can't use Lastfm function, config didn't define API key or Secret"
+
+instance Exception HariharaException
+
+-- }}}
 
 -- HariharaOptions {{{
 
@@ -61,107 +96,74 @@ setOptsDBFresh b = onOptsDBFresh $ const b
 
 -- }}}
 
--- Handlers {{{
+-- GetOpt {{{
 
-type OptionsBuilder = HariharaOptions -> Maybe HariharaOptions
-type LongFlag = String
-type ShortFlag = String
-type Arg  = String
-type Usage = String
+type OptionsBuilder = HariharaOptions -> IO HariharaOptions
 
-type FlagHandler = (LongFlag,ShortFlag,Usage,Arg -> OptionsBuilder)
+parseOptions :: [String] -> IO HariharaOptions
+parseOptions args =
+  case getOpt Permute testOpts args of
+    (fs, ps, []) -> mkOpts fs ps defaultOptions
+    (_ , _ , es) -> mapM_ putStrLn es >> usage
 
-defaultFlagHandlers :: [FlagHandler]
-defaultFlagHandlers =
-  [ ( "log"      , "l"  , "[[0-4]|silent|error|warn|info|debug]" , handleLogLevel )
-  , ( "database" , "db" , "<path/to/db>"                         , handleDBPath   )
-  , ( "fresh-db" , "f"  , ""                                     , handleDBFresh  )
+usage :: IO a
+usage = do
+  putStrLn "Usage:"
+  putStr $ usageInfo "harihara [FLAGS] file1 file2 ..." testOpts
+  exitFailure
+
+testOpts :: [OptDescr OptionsBuilder]
+testOpts =
+  [ Option ['l'] ["log"]
+      (ReqArg logArg "NUM")
+      "Log level: 0/silent, 1/error, 2/warn, 3/info, 4/debug"
+  , Option ['d'] ["database"]
+      (ReqArg dbArg "FILE")
+      "Path to database"
+  , Option [] ["fresh-db"]
+      (NoArg freshArg)
+      "Drop the current database entirely"
   ]
 
-handleLogLevel :: Arg -> OptionsBuilder
-handleLogLevel ll opts = do
-  lvl <- parsedLevel
-  setOptsLogLevel lvl opts
+mkOpts :: [OptionsBuilder] -> [FilePath] -> OptionsBuilder
+mkOpts fs ps = appBldrs $ fileBldr : fs
   where
-  parsedLevel = case ll of
-    "silent" -> Just LogSilent
-    "error" -> Just LogError
-    "warn"  -> Just LogWarn
-    "info"  -> Just LogInfo
-    "debug" -> Just LogDebug
-    "0"     -> Just LogSilent
-    "1"     -> Just LogError
-    "2"     -> Just LogWarn
-    "3"     -> Just LogInfo
-    "4"     -> Just LogDebug
-    _       -> Nothing
+  fileBldr = appBldrs $ map fileArg ps
 
-handleDBPath :: Arg -> OptionsBuilder
-handleDBPath fp = setOptsDBPath fp
+appBldrs :: [OptionsBuilder] -> OptionsBuilder
+appBldrs = flip $ foldrM ($)
 
-handleDBFresh :: Arg -> OptionsBuilder
-handleDBFresh b = setOptsDBFresh shouldFresh
-  where
-  shouldFresh = case b of
-    'Y':_ -> True
-    'y':_ -> True
-    'N':_ -> False
-    'n':_ -> False
-    _     -> optsDBFresh $ defaultOptions
+freshArg :: OptionsBuilder
+freshArg = setOptsDBFresh True
 
-handleFile  :: Arg -> OptionsBuilder
-handleFile f = onOptsFiles $ S.insert f
+-- | Handle a file argument
+fileArg :: String -> OptionsBuilder
+fileArg fp o = do
+  fileExists <- doesFileExist fp
+  if fileExists
+  then onOptsFiles (S.insert fp) o
+  else throwIO $ FileDoesNotExist fp
 
--- }}}
+-- | Handle a log level argument
+logArg  :: String -> OptionsBuilder
+logArg arg o = case arg of
+  "0"      -> setOptsLogLevel LogSilent o
+  "silent" -> setOptsLogLevel LogSilent o
+  "1"      -> setOptsLogLevel LogError  o
+  "error"  -> setOptsLogLevel LogError  o
+  "2"      -> setOptsLogLevel LogWarn   o
+  "warn"   -> setOptsLogLevel LogWarn   o
+  "3"      -> setOptsLogLevel LogInfo   o
+  "info"   -> setOptsLogLevel LogInfo   o
+  "4"      -> setOptsLogLevel LogDebug  o
+  "debug"  -> setOptsLogLevel LogDebug  o
+  _        -> throwIO $ NoFlagParse "LogLevel" arg
 
--- Parsing Options {{{
-
-parseOptions :: [String] -> Either Usage HariharaOptions
-parseOptions = parseOptionsWith defaultFlagHandlers
-
-parseOptionsWith :: [FlagHandler] -> [String] -> Either Usage HariharaOptions
-parseOptionsWith hs args = case loop args of
-  Just opts -> Right opts
-  Nothing   -> Left $ mkUsage hs
-  where
-  loop as = case as of
-    ('-':'-':flag):arg:rest -> longFlag  hs flag arg =<< loop rest
-    ('-':flag):rest         -> shortFlag hs flag     =<< loop rest
-    f:rest                  -> handleFile f          =<< loop rest
-    []                      -> return defaultOptions
-
-shortFlag :: [FlagHandler] -> String -> OptionsBuilder
-shortFlag hs fa = loop hs
-  where
-  loop l = case l of
-    (_,sf,_,h):l'
-      | sf `isPrefixOf` fa -> h $ splitPrefix sf fa
-      | otherwise          -> loop l'
-    []                     -> return
-
-longFlag :: [FlagHandler] -> LongFlag -> Arg -> OptionsBuilder
-longFlag hs f a = loop hs
-  where
-  loop l = case l of
-    (lf,_,_,h):l'
-      | f == lf   -> h a
-      | otherwise -> loop l'
-    []            -> return
-
-mkUsage :: [FlagHandler] -> Usage
-mkUsage = unwords . (map $ \(lf,sf,u,_) ->
-  "[" ++ long lf ++ "|" ++ short sf ++ "]"++u)
-  where
-  long lf = "--" ++ lf ++ " "
-  short sf = "-" ++ sf
-
-splitPrefix :: String -> String -> String
-splitPrefix prf s = case (prf,s) of
-  (c:prf',c':s')
-    | c == c'   -> splitPrefix prf' s'
-    | otherwise -> s
-  ([],rest)     -> rest
-  _             -> ""
+-- | Handle a DB path argument
+dbArg :: String -> OptionsBuilder
+dbArg fp o = if isValid fp
+  then setOptsDBPath fp o
+  else throwIO $ InvalidPath fp
 
 -- }}}
 

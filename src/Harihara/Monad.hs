@@ -1,18 +1,17 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Harihara.Monad where
 
 import MonadLib
 
 import qualified Audio.TagLib.Internal as TL (TagLibException(..))
-import Text.Show.Pretty (ppShow)
 
 import Control.Applicative
 import Control.Exception
-import Data.Typeable (Typeable())
+import qualified Data.Text.IO as T
 
 import Harihara.DB     hiding (io)
 import Harihara.Lastfm hiding (io, getLastfmEnv)
@@ -47,7 +46,7 @@ instance BaseM Harihara IO where
 
 instance MonadLog Harihara where
   getLogLevel = fromHHEnv logLevel
-  writeLog = io . putStrLn
+  writeLog = io . T.putStrLn
   header = return "Main"
 
 catchHarihara :: (Exception e) => Harihara a -> (e -> Harihara a) -> Harihara a
@@ -61,14 +60,6 @@ m `catchHarihara` f = do
 -- }}}
 
 -- Harihara Exceptions {{{
-
-data HariharaException
-  = Usage String
-  | CantFreshDB String
-  | MissingLastfmConfig
-  deriving (Show,Typeable)
-
-instance Exception HariharaException
 
 -- }}}
 
@@ -143,7 +134,7 @@ evalStateT s m = do
 
 tag :: FilePath -> (FileId -> Tag a) -> Harihara a
 tag fp f = do
-  logInfo "Tag"
+  logInfo "Entering Tag"
   tEnv <- getTagEnv
   io $ runTag tEnv $ withFile fp f
 
@@ -153,12 +144,12 @@ tag fp f = do
 skipIfFileBad :: Harihara () -> Harihara ()
 skipIfFileBad m = catchHarihara m $ \e -> case e of
   TL.InvalidFile fp -> do
-    logWarn $ "Invalid TagLib file: " ++ ppShow fp
+    logWarnData "Invalid TagLib file" $ show fp
     logWarn "Skipping."
   TL.UnableToOpen fp -> do
-    logWarn $ "TagLib unable to open file: " ++ ppShow fp
+    logWarnData "TagLib unable to open file" $ show fp
     logWarn "Skipping."
-  _ -> io $ throw e
+  _ -> io $ throwIO e
 
 -- }}}
 
@@ -170,8 +161,10 @@ lastfm m = do
   case mEnv of
     Nothing -> do
       logError "Last.fm API key or Secret are missing from config"
-      io $ throw MissingLastfmConfig
-    Just env -> io $ runLastfm env m
+      io $ throwIO MissingLastfmConfig
+    Just env -> do
+      logInfo "Entering Lastfm"
+      io $ runLastfm env m
 
 -- }}}
 
@@ -180,7 +173,7 @@ lastfm m = do
 db :: DB a -> Harihara a
 db m = do
   fp <- dbPath <$> getDatabaseOpts
-  logInfo "DB"
+  logInfo "Entering DB"
   withDB fp m
 
 withDB :: FilePath -> DB a -> Harihara a

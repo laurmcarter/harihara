@@ -22,7 +22,7 @@ import Harihara.Utils
 -- | Retrieve a list of artists similar to one given.
 similarArtists :: Text -> Lastfm (Text,[ArtistSimilar])
 similarArtists ar = do
-  logInfo $ "Getting artists similar to " ++ ppShow ar
+  logInfoData "Getting artists similar to:" $ ppShow ar
   cor <- getCorrection_artist ar
   let ar' = maybe (capitalize ar) artistCorrectionName cor
   (ar',) <$> getSimilar_artist ar'
